@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- res/values/themes.xml -->
+<resources>
+    <style name="Theme.MyApp.Splash" parent="Theme.SplashScreen">
+        <!-- Background color for splash screen -->
+        <item name="windowSplashScreenBackground">@android:color/transparent</item>
+
+        <!-- The icon shown on splash screen -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/main_logo</item>
+
+    </style>
+
+<!--     Your main app theme, no ActionBar-->
+    <style name="Theme.MyApp" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your app theme here -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <!-- etc -->
+    </style>
+
+
+</resources>
+
