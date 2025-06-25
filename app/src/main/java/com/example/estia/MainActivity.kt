@@ -1,7 +1,14 @@
 package com.example.estia
 
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.widget.RemoteViews
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,11 +17,17 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.estia.FileExplorerScreen.FileExplorerViewModel
+import com.example.estia.LoginScreen.LoginScreen
+import com.example.estia.MainAppScreen.MainAppScreen
+import com.example.estia.MainAppScreen.MainAppScreenViewModel
 
 @Composable
 fun Main(fileExplorerViewModel: FileExplorerViewModel)
@@ -67,10 +80,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val fileExplorerViewModel = viewModel<FileExplorerViewModel>()
             fileExplorerViewModel.setContentResolverAndInitDB(contentResolver, context = this)
+
             Main(fileExplorerViewModel)
         }
     }
 }
+
 
 
 

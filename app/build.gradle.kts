@@ -1,3 +1,4 @@
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -46,8 +47,18 @@ kapt {
 }
 
 dependencies {
+    // Life Cycle
+    implementation("androidx.lifecycle:lifecycle-service:2.6.2")
+
+    // ExoPlayer
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+
     // Data Store
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // gson
+    implementation ("com.google.code.gson:gson:2.10.1")
 
     // Room
     implementation("androidx.room:room-runtime:$roomVersion")
@@ -58,6 +69,16 @@ dependencies {
     implementation("io.coil-kt:coil:2.4.0")
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("androidx.palette:palette-ktx:1.0.0")
+
+    // jsoup
+    implementation("org.jsoup:jsoup:1.14.3")
+
+
+    // Media3 for notificatiopn
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.media3:media3-session:1.3.1")
+    implementation("androidx.media:media:1.6.0")
 
 
     // Coil
