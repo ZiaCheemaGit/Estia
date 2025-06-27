@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.estia.LyricsEntry
 import com.example.estia.MusicDataBase
+import com.example.estia.MusicFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -110,6 +111,43 @@ class PlayerDrawerViewModel : ViewModel() {
             isLyricsLoading = false
         }
     }
+    fun refreshLyrics(artist: String, title: String) {
+        isLyricsLoading = true
+        viewModelScope.launch(Dispatchers.IO) {
+            // Clear existing cache from memory
+            lyrics = ""
+            lyricsError = null
+
+            // Optionally clear from database too
+            db.lyricsDao().deleteLyrics(title, artist)
+
+            // Force fresh fetch
+            val cleanedTitle = title
+                .lowercase()
+                .substringBefore("-")
+                .replace(Regex("\\(.*?\\)|\\[.*?\\]"), "")
+                .replace("radio edit", "", ignoreCase = true)
+                .replace(".", "")
+                .replace(Regex("[^a-z0-9 ]"), "")
+                .replace(Regex("\\s+"), "-")
+                .trim()
+
+            val result = fetchLyricsFromAllSources(artist, cleanedTitle)
+
+            if (!result.isNullOrEmpty() && result != "null") {
+                lyrics = result
+                loadedLyricsSongName = title
+                loadedLyricsSongArtistName = artist
+                saveLyricsToDb(title, artist, result)
+            } else {
+                lyricsError = "No fresh lyrics found"
+                val fallback = "No lyrics found on Server"
+                saveLyricsToDb(title, artist, fallback)
+            }
+
+            isLyricsLoading = false
+        }
+    }
 
     suspend fun fetchLyricsFromAllSources(artist: String, title: String): String? {
         val cleanedArtist = artist.trim()
@@ -137,12 +175,15 @@ class PlayerDrawerViewModel : ViewModel() {
         val artistList = artist.split(",").map { it.trim() }
 
         for (a in artistList) {
+            if (a == "Unknown Artist"){
+                break
+            }
             try {
                 val url = "https://api.lyrics.ovh/v1/${a}/${title}"
                 val connection = URL(url).openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.connectTimeout = 10_000
-                connection.readTimeout = 10_000
+                connection.connectTimeout = 1_500
+                connection.readTimeout = 1_500
 
                 if (connection.responseCode == 200) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
@@ -187,6 +228,9 @@ class PlayerDrawerViewModel : ViewModel() {
 
         // Try each artist variant
         for (cleanedArtist in cleanedArtists) {
+            if (cleanedArtist == "Unknown Artist"){
+                break
+            }
             val url = "$baseUrl$cleanedArtist-$cleanedTitle-lyrics"
             try {
                 val doc = withContext(Dispatchers.IO) {

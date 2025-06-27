@@ -285,7 +285,7 @@ fun MusicListView(
     innerPadding : PaddingValues,
     expandableDrawerViewModel: PlayerDrawerViewModel
 ) {
-    var selectedfilter = fileExplorerViewModel.selectedFilter.collectAsState()
+    var selectedfilter = fileExplorerViewModel.selectedFilter
 
     val isScrolledDown by remember {
         derivedStateOf {
@@ -457,6 +457,7 @@ fun MusicListView(
 
             // Albums List
             if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[1]){
+
                 for (i in list.indices step 2) {
                     item {
                         Row(
@@ -629,16 +630,8 @@ fun MusicListView(
                         }
                     }
 
-                    LaunchedEffect(fileExplorerViewModel.selectedFilter) {
-                        if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[0]){
-                            fileExplorerViewModel.showSongs()
-                        }
-                        if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[1]){
-                            fileExplorerViewModel.showAlbums()
-                        }
-                        if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[2]){
-                            fileExplorerViewModel.showArtists()
-                        }
+                    LaunchedEffect(selectedfilter) {
+                        fileExplorerViewModel.applyFilter(selectedfilter.value)
                     }
 
                 }
@@ -674,11 +667,7 @@ fun SongItemComposable(
                     if (swipeOffset.value >= dragThreshold) {
                         swipeOffset.animateTo(maxOffset)
                         // add song to playList
-                        if (playListScreenViewModel.playList.value.isEmpty()) {
-                            mainAppScreenViewModel.setNowPlaying(musicFile)
-                        }
-
-                        playListScreenViewModel.enqueueMusicFile(musicFile)
+                        playListScreenViewModel.enqueueInPlayQueue(musicFile)
 
                         swipeOffset.animateTo(0f) // snap back
                     } else {
@@ -741,6 +730,7 @@ fun SongItemComposable(
                         searchQuery.value = ""
                         showSearchBar.value = false
                         mainAppScreenViewModel.setNowPlaying(musicFile)
+                        mainAppScreenViewModel.play()
                     }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -862,7 +852,6 @@ fun AlbumItemComposable(music: MusicFile) {
         }
     }
 }
-
 
 @Composable
 fun NoMusicFoundInLocalStorageScreen(){

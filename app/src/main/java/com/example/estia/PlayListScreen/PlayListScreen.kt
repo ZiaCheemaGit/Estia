@@ -1,7 +1,6 @@
 package com.example.estia.PlayListScreen
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -10,11 +9,10 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,10 +20,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,17 +37,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.MusicFile
+import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.R
 import com.example.estia.SpotifyBold
 import kotlinx.coroutines.launch
@@ -56,229 +60,365 @@ import kotlin.math.roundToInt
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
 fun RenderPlayListScreen(
+    fileExplorerViewModel: FileExplorerViewModel,
+    expandableDrawerViewModel : PlayerDrawerViewModel,
+    innerPadding: PaddingValues,
     playListScreenViewModel: PlayListScreenViewModel,
     mainAppScreenViewModel : MainAppScreenViewModel){
 
-    LaunchedEffect(mainAppScreenViewModel.nowPlaying.value) {
-        mainAppScreenViewModel.nowPlaying.value?.let { currentSong ->
-
-            if (playListScreenViewModel.playList.value.isNotEmpty()) {
-                val firstSong = playListScreenViewModel.playList.value[0]
-
-                if (currentSong.name != firstSong.name && currentSong.artist != firstSong.artist) {
-                    playListScreenViewModel.replaceNowPlayingMusicFile(currentSong)
-                }
-
-            } else {
-                playListScreenViewModel.addNowPlayingMusicFile(currentSong)
-            }
-
-        }
-    }
-
-
     MusicListView(
-        list = playListScreenViewModel.playList.value,
+        expandableDrawerViewModel,
+        playListScreenViewModel,
+        queue = playListScreenViewModel.visiblePlayQueue.value,
+        fileExplorerViewModel,
         listState = remember { LazyListState() },
-        mainAppScreenViewModel
+        mainAppScreenViewModel,
+        innerPadding = innerPadding
     )
 
 }
 
+
 @Composable
 fun MusicListView(
-    list: List<MusicFile>,
+    expandableDrawerViewModel : PlayerDrawerViewModel,
+    playListScreenViewModel: PlayListScreenViewModel,
+    queue: List<MusicFile>,
+    fileExplorerViewModel: FileExplorerViewModel,
     listState: LazyListState,
-    mainAppScreenViewModel: MainAppScreenViewModel
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    innerPadding : PaddingValues
 ) {
-
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (
-                    listState.firstVisibleItemIndex == 0 &&
-                    listState.firstVisibleItemScrollOffset == 0 &&
-                    available.y > 10f
-                ) {
-                }
-
-
-                return Offset.Zero
-            }
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .nestedScroll(nestedScrollConnection)
     ) {
-
         // LazyColumn with song list
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 70.dp, start = 15.dp, end = 15.dp) // Leave space for search bar
+                .padding(start = 15.dp, end = 15.dp)
         ) {
+            // top padding
             item{
-                if(list.size == 0){
-                    Spacer(Modifier.height(120.dp))
-                    NoMusicFoundInPlayQueue()
+                Spacer(Modifier.height(innerPadding.calculateTopPadding()))
+            }
+
+            // Now Playing Song
+            item{
+                val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
+                if(nowPlaying != null){
+
+                    val musicNameColor = Color.White
+                    val artistColor = Color.Gray
+
+                    val coverArt = nowPlaying?.coverArtUri
+
+                    var name = nowPlaying?.name ?: ""
+                    var artist = nowPlaying?.artist ?: ""
+
+                    if (name.length > 45) name = name.take(45) + "..."
+                    if (artist.length > 45) artist = artist.take(45) + "..."
+                    if (artist == "<unknown>") artist = "Unknown Artist"
+
+
+                    Box(modifier = Modifier
+                        .background(Color.Black)
+                        .fillMaxWidth()
+                    ) {
+                        Column(
+                            Modifier.height(100.dp)
+                        ){
+                            Text(
+                                "Now Playing",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontFamily = SpotifyBold,
+                            )
+                            Spacer(Modifier.height(20.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(65.dp)
+                                    .background(Color.Black),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(65.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(
+                                            modifier = Modifier
+                                                .height(50.dp)
+                                                .width(50.dp)
+                                        ) {
+                                            if (coverArt == null) {
+                                                Image(
+                                                    painter = painterResource(id = R.drawable.music_icon_compressed),
+                                                    contentDescription = "Simple Music Icon",
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            } else {
+                                                AsyncImage(
+                                                    model = coverArt,
+                                                    contentDescription = "Cover Art",
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(Modifier.width(10.dp))
+
+                                        Column (
+                                            modifier = Modifier.width(250.dp)
+                                        ){
+                                            Text(
+                                                fontSize = 14.sp,
+                                                fontFamily = SpotifyBold,
+                                                text = name,
+                                                color = musicNameColor,
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                fontSize = 12.sp,
+                                                fontFamily = SpotifyBold,
+                                                text = artist,
+                                                color = artistColor
+                                            )
+                                        }
+                                        NowPlayingAnimationBar()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                 }
             }
 
-            items(list.size) { index ->
-                val swipeOffset = remember { Animatable(0f) }
-                val maxOffset = 250f // Max swipe distance to reveal hidden UI
-                val dragThreshold = 100f
-                val scope = rememberCoroutineScope()
+            // Play Queue
+            items(queue.size) { index ->
 
-                val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
+                val musicNameColor = Color.White
+                val artistColor = Color.Gray
 
-                val musicNameColor = if (nowPlaying?.name == list[index].name &&
-                    nowPlaying?.artist == list[index].artist &&
-                    nowPlaying?.source == list[index].source
-                )
-                    Color.Green else Color.White
-
-                val artistColor = if (nowPlaying?.name == list[index].name &&
-                    nowPlaying?.artist == list[index].artist &&
-                    nowPlaying?.source == list[index].source
-                )
-                    Color.Green else Color.Gray
-
-                val gestureModifier = Modifier.pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { _, dragAmount ->
-                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(0f, maxOffset)
-                            scope.launch { swipeOffset.snapTo(newOffset) }
-                        },
-                        onDragEnd = {
-                            scope.launch {
-                                if (swipeOffset.value >= dragThreshold) {
-                                    swipeOffset.animateTo(maxOffset)
-                                    // (optional) trigger some action here
-
-                                    swipeOffset.animateTo(0f) // snap back
-                                } else {
-                                    swipeOffset.animateTo(0f) // also snap back if not enough
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            scope.launch {
-                                swipeOffset.animateTo(0f) // also snap back on cancel
-                            }
-                        }
-                    )
-                }
-
-
-                var name = list[index].name ?: ""
-                var artist = list[index].artist ?: ""
+                var name = queue[index].name ?: ""
+                var artist = queue[index].artist ?: ""
 
                 if (name.length > 45) name = name.take(45) + "..."
                 if (artist.length > 45) artist = artist.take(45) + "..."
                 if (artist == "<unknown>") artist = "Unknown Artist"
 
-                if(index == 0) {
-                    Spacer(Modifier.height(50.dp))
-                }
+                val coverArt = queue[index].coverArtUri
 
-
-                Box(modifier = Modifier
-                    .background(Color.Black)
-                    .fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .background(Color.Black)
+                        .fillMaxWidth()
                 ) {
-                    // Hidden row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(65.dp)
-                            .background(Color.Red),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
                     ) {
-                        Text("Hidden UI", color = Color.White, modifier = Modifier.padding(16.dp))
-                    }
-
-                    // Visible song row
-                    Row(
-                        modifier = Modifier
-                            .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
-                            .fillMaxWidth()
-                            .height(65.dp)
-                            .background(Color.Black)
-                            .then(gestureModifier),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
+                        if (index == 0) {
+                            Spacer(Modifier.height(30.dp))
+                            Row(
+                                Modifier.height(30.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ){
+                                Text(
+                                    modifier = Modifier.weight(1f),
+                                    text = "Next In : Queue",
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontFamily = SpotifyBold,
+                                )
+                                IconButton(onClick = {
+                                    playListScreenViewModel.clearPlayQueue()
+                                }) {
+                                    Image(
+                                        modifier = Modifier.size(20.dp),
+                                        painter = painterResource(id = R.drawable.trash_icon),
+                                        contentDescription = "Clear Queue",
+                                        colorFilter = ColorFilter.tint(Color.White)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp)
                                 .height(65.dp)
-                                .clickable {
-                                    mainAppScreenViewModel.setNowPlaying(list[index])
-                                }
+                                .background(Color.Black),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(
-                                    modifier = Modifier
-                                        .height(50.dp)
-                                        .width(50.dp)
-                                ) {
-                                    val coverArt = list[index].coverArtUri
-                                    if (coverArt == null) {
-                                        Image(
-                                            painter = painterResource(id = R.drawable.music_icon_compressed),
-                                            contentDescription = "Simple Music Icon",
-                                            modifier = Modifier.fillMaxSize()
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                                    .height(65.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(
+                                        modifier = Modifier
+                                            .height(50.dp)
+                                            .width(50.dp)
+                                    ) {
+                                        if (coverArt == null) {
+                                            Image(
+                                                painter = painterResource(id = R.drawable.music_icon_compressed),
+                                                contentDescription = "Simple Music Icon",
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            AsyncImage(
+                                                model = coverArt,
+                                                contentDescription = "Cover Art",
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(Modifier.width(10.dp))
+
+                                    Column(
+                                        modifier = Modifier.width(250.dp)
+                                    ) {
+                                        Text(
+                                            fontSize = 14.sp,
+                                            fontFamily = SpotifyBold,
+                                            text = name,
+                                            color = musicNameColor,
                                         )
-                                    } else {
-                                        AsyncImage(
-                                            model = coverArt,
-                                            contentDescription = "Cover Art",
-                                            modifier = Modifier.fillMaxSize()
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            fontSize = 12.sp,
+                                            fontFamily = SpotifyBold,
+                                            text = artist,
+                                            color = artistColor
                                         )
                                     }
-                                }
-
-                                Spacer(Modifier.width(10.dp))
-
-                                Column (
-                                    modifier = Modifier.width(250.dp)
-                                ){
-                                    Text(
-                                        fontSize = 14.sp,
-                                        fontFamily = SpotifyBold,
-                                        text = name,
-                                        color = musicNameColor,
-                                    )
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        fontSize = 12.sp,
-                                        fontFamily = SpotifyBold,
-                                        text = artist,
-                                        color = artistColor
-                                    )
-                                }
-                                if (nowPlaying?.name == list[index].name &&
-                                    nowPlaying?.artist == list[index].artist &&
-                                    nowPlaying?.source == list[index].source
-                                ) {
-                                    NowPlayingAnimationBar()
                                 }
                             }
                         }
                     }
+                }
+            }
 
+            // now playing based next Up Songs : Local Storage Queue
+            val localStorageQueue = playListScreenViewModel.visibleLocalStorageQueue.value
+            items(localStorageQueue.size) { index ->
+
+                    val musicNameColor = Color.White
+                    val artistColor = Color.Gray
+
+                    var name = localStorageQueue[index].name ?: ""
+                    var artist = localStorageQueue[index].artist ?: ""
+
+                    if (name.length > 45) name = name.take(45) + "..."
+                    if (artist.length > 45) artist = artist.take(45) + "..."
+                    if (artist == "<unknown>") artist = "Unknown Artist"
+
+                    val coverArt = localStorageQueue[index].coverArtUri
+
+                    Box(
+                        modifier = Modifier
+                            .background(Color.Black)
+                            .fillMaxWidth()
+                    ) {
+                        Column(
+                        ) {
+                            if (index == 0) {
+                                Spacer(Modifier.height(30.dp))
+                                Row(
+                                    Modifier.height(30.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ){
+                                    Text(
+                                        modifier = Modifier.weight(1f),
+                                        text = "Next In : Local Storage",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontFamily = SpotifyBold,
+                                    )
+                                    IconButton(onClick = {
+                                        playListScreenViewModel.clearLocalStorageQueue()
+                                    }) {
+                                        Image(
+                                            modifier = Modifier.size(20.dp),
+                                            painter = painterResource(id = R.drawable.trash_icon),
+                                            contentDescription = "Clear Queue",
+                                            colorFilter = ColorFilter.tint(Color.White)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(10.dp))
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(65.dp)
+                                    .background(Color.Black),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 2.dp)
+                                        .height(65.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(
+                                            modifier = Modifier
+                                                .height(50.dp)
+                                                .width(50.dp)
+                                        ) {
+                                            if (coverArt == null) {
+                                                Image(
+                                                    painter = painterResource(id = R.drawable.music_icon_compressed),
+                                                    contentDescription = "Simple Music Icon",
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            } else {
+                                                AsyncImage(
+                                                    model = coverArt,
+                                                    contentDescription = "Cover Art",
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(Modifier.width(10.dp))
+
+                                        Column(
+                                            modifier = Modifier.width(250.dp)
+                                        ) {
+                                            Text(
+                                                fontSize = 14.sp,
+                                                fontFamily = SpotifyBold,
+                                                text = name,
+                                                color = musicNameColor,
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                fontSize = 12.sp,
+                                                fontFamily = SpotifyBold,
+                                                text = artist,
+                                                color = artistColor
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
-
-                if (index == list.size - 1) {
-                    Spacer(modifier = Modifier.height(175.dp))
-                }
+            // Bottom Space
+            item{
+                Spacer(Modifier.height(innerPadding.calculateBottomPadding() + expandableDrawerViewModel.collapsedHeightDp))
             }
         }
     }
@@ -292,8 +432,6 @@ fun NoMusicFoundInPlayQueue(){
         color = Color.White
     )
 }
-
-
 
 
 @Composable

@@ -1,6 +1,7 @@
 package com.example.estia.MainAppScreen
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,24 +44,28 @@ import com.example.estia.SpotifyBold
 import com.example.estia.PlayerDrawer.playerDrawer
 import com.example.estia.PlayListScreen.RenderPlayListScreen
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
+import com.example.estia.SearchScreen.RenderSearchScreen
+import com.example.estia.SearchScreen.SearchScreenViewModel
+import kotlin.math.exp
 
 @Composable
 fun MainAppScreen(
     navController: NavController,
     fileExplorerViewModel: FileExplorerViewModel) {
 
-    val expandableDrawerViewModel : PlayerDrawerViewModel = viewModel()
-
+    val expandableDrawerViewModel = viewModel<PlayerDrawerViewModel>()
+        
     RequestMediaPlaybackPermission()
 
     val mainAppScreenViewModel = viewModel<MainAppScreenViewModel>()
+    val playListScreenViewModel : PlayListScreenViewModel = viewModel()
+    val searchScreenViewModel : SearchScreenViewModel = viewModel()
+
     mainAppScreenViewModel.setContextandDB(LocalContext.current)
-    mainAppScreenViewModel.initExoPlayer(LocalContext.current)
+    mainAppScreenViewModel.initService(LocalContext.current)
     mainAppScreenViewModel.loadPlayBackState()
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
-
-    val playListScreenViewModel : PlayListScreenViewModel = viewModel()
 
     Scaffold(
         modifier = Modifier
@@ -82,26 +87,51 @@ fun MainAppScreen(
             Box(){
                 when (mainAppScreenViewModel.currentScreen) {
                     "ExploreScreen" -> RenderExploreScreen(mainAppScreenViewModel)
-                    "SearchScreen" -> RenderSearchScreen(mainAppScreenViewModel)
+
+                    "SearchScreen" -> RenderSearchScreen(
+                        innerPadding,
+                        searchScreenViewModel,
+                        mainAppScreenViewModel = mainAppScreenViewModel
+                    )
+
                     "FileExplorerScreen" ->
                         RenderFileExplorerScreen(
                             playListScreenViewModel,
                             mainAppScreenViewModel,
                             fileExplorerViewModel,
                             innerPadding,
-                            expandableDrawerViewModel)
+                            expandableDrawerViewModel = expandableDrawerViewModel
+                        )
+
                     "AccountScreen" -> RenderAccountScreen(mainAppScreenViewModel)
+
                     "SettingsScreen" -> RenderSettingsScreen(mainAppScreenViewModel)
+
                     "PlayListScreen" -> RenderPlayListScreen(
+                        fileExplorerViewModel,
+                        expandableDrawerViewModel,
+                        innerPadding,
                         playListScreenViewModel,
                         mainAppScreenViewModel)
+
                 }
                 if(nowPlaying != null){
                     playerDrawer(
+                        playListScreenViewModel,
                         mainAppScreenViewModel,
                         innerPadding = innerPadding,
-                        expandableDrawerViewModel = expandableDrawerViewModel
+                        
                     )
+                }
+
+                val list by fileExplorerViewModel.permanentAllSongsList.collectAsState()
+
+                LaunchedEffect(list) {
+                    playListScreenViewModel.setLocalStorageQueue(fileExplorerViewModel.permanentAllSongsList.value)
+                }
+
+                LaunchedEffect(nowPlaying) {
+                    playListScreenViewModel.setNowPlaying(nowPlaying)
                 }
             }
         }
@@ -131,21 +161,6 @@ fun RenderAccountScreen(mainAppScreenViewModel : MainAppScreenViewModel) {
             Text(
                 text = "Account Screen Account Screen Account Screen  Account Screen" +
                         "Account Screen Account Screen Account Screen",
-                modifier = Modifier.padding(16.dp),
-                color = Color.White
-            )
-        }
-    }
-}
-
-@Composable
-fun RenderSearchScreen(mainAppScreenViewModel : MainAppScreenViewModel) {
-    LazyColumn(
-    ) {
-        items(100) { index ->
-            Text(
-                text = "Search Screen  Search Screen  Search Screen   Search Screen Search Screen" +
-                        "Search Screen Search Screen   Search Screen",
                 modifier = Modifier.padding(16.dp),
                 color = Color.White
             )

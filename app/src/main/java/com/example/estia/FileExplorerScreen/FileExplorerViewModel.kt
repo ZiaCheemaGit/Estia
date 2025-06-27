@@ -26,16 +26,16 @@ import java.io.File
 import java.util.Locale
 
 class FileExplorerViewModel : ViewModel() {
+
     // Filter Logic
     val filterOptionsList = arrayOf("Songs", "Albums", "Artists")
-    val _selectedFilter = MutableStateFlow<String>("Songs")
-    val selectedFilter = _selectedFilter
+
+    var selectedFilter = mutableStateOf(filterOptionsList[0])
 
     fun applyFilter(newFilter: String) {
         if(selectedFilter.value != newFilter){
             viewModelScope.launch {
                 isLoading.value = true
-                selectedFilter.value = newFilter
                 delay(100) // simulate/allow recomposition/render prep
                 if (newFilter == filterOptionsList[0]) {
                     showSongs()
@@ -45,6 +45,7 @@ class FileExplorerViewModel : ViewModel() {
                     showArtists()
                 }
                 isLoading.value = false
+                selectedFilter.value = newFilter
             }
         }
     }
@@ -52,7 +53,7 @@ class FileExplorerViewModel : ViewModel() {
     // search Logic
     val searchQuery = mutableStateOf("")
     val showSearchBar = mutableStateOf(false)
-    private val permanentAllSongsList = MutableStateFlow(listOf<MusicFile>())
+    val permanentAllSongsList = MutableStateFlow(listOf<MusicFile>())
 
     fun search() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -126,6 +127,11 @@ class FileExplorerViewModel : ViewModel() {
     val isLoading = _isLoading
 
     fun loadMusicFiles() = viewModelScope.launch(Dispatchers.IO) {
+
+        if(permanentAllSongsList.value.isNotEmpty()){
+            isLoading.value = false
+            return@launch
+        }
 
         var existingSongs = db.musicDao().getAllMusic().firstOrNull()
         if (!existingSongs.isNullOrEmpty()) {

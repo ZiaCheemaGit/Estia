@@ -61,7 +61,9 @@ data class MusicFile(
 @Entity()
 data class PlayBackMusicFile(
     @PrimaryKey
-    val id: Long = 1, // Always just one row
+    val rowId: Int = 0,
+
+    val id: Long,
     val name: String? = null,
     val artist: String? = null,
     val album: String? = null,
@@ -91,6 +93,9 @@ interface LyricsDao {
 
     @Query("SELECT * FROM lyrics_table WHERE songName = :title AND artistName = :artist LIMIT 1")
     suspend fun getLyrics(title: String, artist: String): LyricsEntry?
+
+    @Query("DELETE FROM lyrics_table WHERE songName = :title AND artistName = :artist")
+    suspend fun deleteLyrics(title: String, artist: String)
 
     @Query("DELETE FROM lyrics_table")
     suspend fun deleteAllLyrics()

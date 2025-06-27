@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -32,7 +33,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.IconButton
+import androidx.compose.material.swipeable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
@@ -75,6 +78,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
+import com.example.estia.PlayListScreen.PlayListScreenViewModel
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.toString
 
@@ -82,10 +87,12 @@ import kotlin.toString
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun playerDrawer(
+    playListViewModel: PlayListScreenViewModel,
     mainAppScreenViewModel: MainAppScreenViewModel,
-    expandableDrawerViewModel: PlayerDrawerViewModel,
+    expandableDrawerViewModel: PlayerDrawerViewModel = viewModel(),
     innerPadding: PaddingValues
 ) {
+
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
     val dominantColor by mainAppScreenViewModel.dominantColor.collectAsState()
 
@@ -117,10 +124,12 @@ fun playerDrawer(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().padding(
-            top = innerPadding.calculateTopPadding(),
-            bottom = innerPadding.calculateBottomPadding()
-        ),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding()
+            ),
         contentAlignment = Alignment.BottomCenter
     ) {
         Card(
@@ -176,14 +185,49 @@ fun playerDrawer(
                             mainAppScreenViewModel = mainAppScreenViewModel,
                             nowPlaying = nowPlaying,
                             dominantColor = dominantColor,
-                            list = list
+                            list = list,
+                            playListViewModel = playListViewModel,
+                            playPrevious = {
+                                val previousSong = playListViewModel.revertToPreviousSong()
+                                if (previousSong != null) {
+                                    mainAppScreenViewModel.setNowPlaying(previousSong)
+                                    mainAppScreenViewModel.play()
+                                } else {
+                                    // No previous song — restart current
+                                    mainAppScreenViewModel.setProgress(0)
+                                }
+                            },
+                            playNext = {
+                                val nextSong = playListViewModel.getNextSongFromMainQueue()
+                                if(nextSong != null){
+                                    mainAppScreenViewModel.setNowPlaying(nextSong)
+                                    mainAppScreenViewModel.play()
+                                }
+                            }
                         )
                     }
                     else{
                         SmallMusicPlayer(
-                            mainAppScreenViewModel,
-                            nowPlaying,
-                            dominantColor
+                            playPrevious = {
+                                val previousSong = playListViewModel.revertToPreviousSong()
+                                if (previousSong != null) {
+                                    mainAppScreenViewModel.setNowPlaying(previousSong)
+                                    mainAppScreenViewModel.play()
+                                } else {
+                                    // No previous song — restart current
+                                    mainAppScreenViewModel.setProgress(0)
+                                }
+                            },
+                            playNext = {
+                                val nextSong = playListViewModel.getNextSongFromMainQueue()
+                                if (nextSong != null) {
+                                    mainAppScreenViewModel.setNowPlaying(nextSong)
+                                    mainAppScreenViewModel.play()
+                                }
+                            },
+                            mainAppScreenViewModel = mainAppScreenViewModel,
+                            nowPlaying = nowPlaying,
+                            dominantColor = dominantColor,
                         )
                     }
                 }
@@ -197,8 +241,11 @@ fun playerDrawer(
 
 }
 
+
 @Composable
 fun SmallMusicPlayer(
+    playNext: () -> Unit,
+    playPrevious: () -> Unit,
     mainAppScreenViewModel: MainAppScreenViewModel,
     nowPlaying : MusicFile?,
     dominantColor: Color){
@@ -214,7 +261,28 @@ fun SmallMusicPlayer(
     var duration = mainAppScreenViewModel.nowPlaying.value?.duration
     var progress = (currentPosition.toFloat() / duration?.toFloat()!!) * 200
 
+    if(currentPosition >= duration){
+        playNext()
+    }
+
+    val threshold = 100f
+    var offsetX by remember { mutableStateOf(0f) }
+
     Row(
+        modifier = Modifier
+            .offset { IntOffset(offsetX.toInt(), 0) }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, dragAmount ->
+                        offsetX += dragAmount
+                    },
+                    onDragEnd = {
+                        if (offsetX > threshold) playPrevious()
+                        else if (offsetX < -threshold) playNext()
+                        offsetX = 0f // reset
+                    }
+                )
+            }
     ){
         Column(
             modifier = Modifier
@@ -306,8 +374,7 @@ fun SmallMusicPlayer(
                     // your action
                     if (mainAppScreenViewModel.nowPlayingPaused.value) {
                         mainAppScreenViewModel.resume()
-                    }
-                    else{
+                    } else {
                         mainAppScreenViewModel.pause()
                     }
                 }
@@ -326,6 +393,9 @@ fun SmallMusicPlayer(
 
 @Composable
 fun LargeMusicPlayer(
+    playNext: () -> Unit,
+    playPrevious: () -> Unit,
+    playListViewModel: PlayListScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
     mainAppScreenViewModel: MainAppScreenViewModel,
     nowPlaying: MusicFile?,
@@ -344,9 +414,8 @@ fun LargeMusicPlayer(
     val nameColor = if (dominantColor.luminance() > 0.5f) Color.Black else Color.White
     val artistColor = if (dominantColor.luminance() > 0.5f) Color(0xFFA9A9A9) else Color.Gray
 
-    var currentPosition = mainAppScreenViewModel.currentPosition.value
-    var duration = mainAppScreenViewModel.nowPlaying.value?.duration
-    var progress = (currentPosition.toFloat() / duration?.toFloat()!!) * 320
+    var currentPosition = mainAppScreenViewModel.currentPosition.longValue
+    var duration : Long = mainAppScreenViewModel.nowPlaying.value?.duration ?: 0L
 
     val listState = rememberLazyListState()
 
@@ -529,9 +598,12 @@ fun LargeMusicPlayer(
 
             item {
                 SeekBar(
-                    currentPosition = mainAppScreenViewModel.currentPosition.value,
+                    currentPosition = currentPosition,
                     duration = duration,
-                    onSeek = { newPosition -> mainAppScreenViewModel.seekTo(newPosition) }
+                    onSeek = { newPosition ->
+                        mainAppScreenViewModel.setProgress(newPosition)
+                    },
+                    playNext = playNext
                 )
             }
 
@@ -543,8 +615,7 @@ fun LargeMusicPlayer(
                     verticalAlignment = Alignment.CenterVertically
                 ){
                     Text(
-                        text = mainAppScreenViewModel.formatDuration(
-                            mainAppScreenViewModel.currentPosition.value),
+                        text = mainAppScreenViewModel.formatDuration(currentPosition),
                         fontSize = 12.sp,
                         fontFamily = SpotifyBold,
                         color = nameColor
@@ -558,6 +629,7 @@ fun LargeMusicPlayer(
                     )
                 }
             }
+
             item {
                 Column(
                     modifier = Modifier
@@ -577,8 +649,16 @@ fun LargeMusicPlayer(
                         IconButton(
                             modifier = Modifier.size(100.dp),
                             onClick = {
-                                // your action
+                                val currentPositionMs = mainAppScreenViewModel.currentPosition.longValue
+                                if (currentPositionMs > 5000) {
+                                    // If more than 5 seconds in, just restart the current track
+                                    mainAppScreenViewModel.setProgress(0)
+                                } else {
+                                    // Otherwise, go to the previous song from history
+                                    playPrevious()
+                                }
                             }
+
                         ) {
                             Image(
                                 painter = painterResource(id = R.drawable.play_previous_icon),
@@ -589,7 +669,6 @@ fun LargeMusicPlayer(
                         }
                         IconButton(
                             onClick = {
-                                // your action
                                 if (mainAppScreenViewModel.nowPlayingPaused.value) {
                                     mainAppScreenViewModel.resume()
                                 } else {
@@ -607,7 +686,7 @@ fun LargeMusicPlayer(
                         IconButton(
                             modifier = Modifier.size(100.dp),
                             onClick = {
-                                // your action
+                                playNext()
                             }
                         ) {
                             Image(
@@ -625,7 +704,6 @@ fun LargeMusicPlayer(
             item {
                 LyricsScreen(
                     nameColor =  nameColor,
-                    dominantColor = dominantColor,
                     viewModel = expandableDrawerViewModel,
                     nowPlaying = nowPlaying
                 )
@@ -638,6 +716,7 @@ fun LargeMusicPlayer(
 
 @Composable
 fun SeekBar(
+    playNext : () -> Unit,
     currentPosition: Long,
     duration: Long,
     onSeek: (Long) -> Unit
@@ -649,21 +728,22 @@ fun SeekBar(
 
     var dragOffsetPx by remember { mutableStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
-    var seekedPosition by remember { mutableStateOf<Long?>(null) }
-
-    LaunchedEffect(currentPosition) {
-        if (!isDragging && seekedPosition != null) {
-            if (abs(currentPosition - seekedPosition!!) < 500) {
-                seekedPosition = null
-            }
-        }
-    }
 
     val progressFraction = when {
-        isDragging -> dragOffsetPx.coerceIn(0f, barWidthPx) / barWidthPx
-        seekedPosition != null && duration > 0 -> seekedPosition!!.toFloat() / duration
+        duration > 0 && isDragging -> dragOffsetPx / barWidthPx
         duration > 0 -> currentPosition.toFloat() / duration
         else -> 0f
+    }
+
+    if(currentPosition >= duration){
+        playNext()
+    }
+
+    // Sync dragOffset with current position when not dragging
+    LaunchedEffect(currentPosition, duration, isDragging) {
+        if (!isDragging && duration > 0) {
+            dragOffsetPx = (currentPosition.toFloat() / duration) * barWidthPx
+        }
     }
 
     Box(
@@ -674,7 +754,7 @@ fun SeekBar(
                 detectTapGestures { offset ->
                     val tappedFraction = (offset.x / barWidthPx).coerceIn(0f, 1f)
                     val position = (tappedFraction * duration).toLong()
-                    seekedPosition = position
+                    dragOffsetPx = offset.x
                     onSeek(position)
                 }
             },
@@ -700,7 +780,8 @@ fun SeekBar(
         Box(
             modifier = Modifier
                 .offset {
-                    IntOffset((barWidthPx * progressFraction - dotSize.toPx() / 2).toInt(), 0)
+                    val offset = if (isDragging) dragOffsetPx else (barWidthPx * progressFraction)
+                    IntOffset((offset - dotSize.toPx() / 2).toInt(), 0)
                 }
                 .size(dotSize)
                 .background(Color.White, shape = CircleShape)
@@ -712,17 +793,16 @@ fun SeekBar(
                         onDragEnd = {
                             val fraction = dragOffsetPx / barWidthPx
                             val position = (fraction * duration).toLong()
-                            seekedPosition = position
-                            onSeek(position)
+                            dragOffsetPx = (position.toFloat() / duration) * barWidthPx
                             isDragging = false
+                            onSeek(position)
                         },
                         onDragCancel = {
                             isDragging = false
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            dragOffsetPx += dragAmount.x
-                            dragOffsetPx = dragOffsetPx.coerceIn(0f, barWidthPx)
+                            dragOffsetPx = (dragOffsetPx + dragAmount.x).coerceIn(0f, barWidthPx)
                         }
                     )
                 }
@@ -731,17 +811,16 @@ fun SeekBar(
 }
 
 
+
 @Composable
 fun LyricsScreen(
     nameColor : Color,
-    dominantColor: Color,
     viewModel: PlayerDrawerViewModel,
     nowPlaying: MusicFile?
 ) {
     val lyrics by remember { derivedStateOf { viewModel.lyrics } }
     val isLoading by remember { derivedStateOf { viewModel.isLyricsLoading } }
     val error by remember { derivedStateOf { viewModel.lyricsError } }
-
 
     Card(
         modifier = Modifier
@@ -752,13 +831,36 @@ fun LyricsScreen(
             Color.Gray
         )
     ){
-        Text(
-            text = "Lyrics",
-            fontSize = 24.sp,
-            fontFamily = SpotifyBold,
-            color = nameColor,
-            modifier = Modifier.padding(16.dp)
-        )
+        Row{
+            Text(
+                text = "Lyrics",
+                fontSize = 24.sp,
+                fontFamily = SpotifyBold,
+                color = nameColor,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .width(260.dp)
+            )
+            IconButton(
+                onClick = {
+                    viewModel.refreshLyrics(
+                        nowPlaying?.artist ?: "",
+                        nowPlaying?.name ?: ""
+                    )
+                }
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.refresh_icon),
+                    contentDescription = "Close Button",
+                    modifier = Modifier
+                        .size(30.dp)
+                        .padding(top = 6.dp),
+                    colorFilter = ColorFilter.tint(nameColor)
+                )
+            }
+        }
+
+
         when {
             isLoading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

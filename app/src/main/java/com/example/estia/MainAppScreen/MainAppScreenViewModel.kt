@@ -1,6 +1,5 @@
 package com.example.estia.MainAppScreen
 
-import android.app.Notification
 import android.content.Context
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
@@ -10,11 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
 import coil.request.ImageRequest
@@ -24,156 +20,107 @@ import com.example.estia.MusicFile
 import com.example.estia.PlayBackMusicFile
 import com.example.estia.R
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.widget.RemoteViews
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.core.app.NotificationCompat
-import androidx.core.app.ServiceCompat.startForeground
-import androidx.core.content.ContextCompat
 import com.example.estia.MainActivity
+import com.example.estia.MusicPlaybackService
+import com.example.estia.MusicServiceController
+import kotlinx.coroutines.delay
 
 
 class MainAppScreenViewModel : ViewModel(){
 
-    // ExoPlayer
-//    fun monitorAndShowNotification() {
-//        viewModelScope.launch {
-//            while (true) {
-//                val song = nowPlaying.value
-//                if (song != null && exoPlayer.isPlaying) {
-//                    PlayerNotificationService(context).showNotification(
-//                        song.coverArtUri ?: "",
-//                        song.artist ?: "Unknown Artist",
-//                        song.name ?: "Unknown Title"
-//                    )
-//                }
-//                delay(1000) // Check every 1 second
-//            }
-//        }
-//    }
-
-//    fun createNotificationChannel() {
-//
-//        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
-//            val channel = NotificationChannel(
-//                "media_playback_channel",
-//                "Media Playback",
-//                NotificationManager.IMPORTANCE_LOW
-//            ).apply {
-//                description = "Used to control music playback from notification"
-//                setSound(null, null)
-//                enableVibration(false)
-//                setShowBadge(false)
-//                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-//            }
-//
-//
-//            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-//            notificationManager.createNotificationChannel(channel)
-//            while(nowPlaying.value != null && exoPlayer.isPlaying){
-//
-//                PlayerNotificationService(context).showNotification(
-//                    nowPlaying.value?.coverArtUri!!,
-//                    nowPlaying.value?.artist!!,
-//                    nowPlaying.value?.name!!
-//                )
-//            }
-//        }
-//    }
-
-    var nowPlayingPaused = mutableStateOf(true)
-
-    val currentPosition = mutableStateOf(0L)
-
-    fun startUpdatingProgress() {
-        viewModelScope.launch {
-            while (true) {
-                currentPosition.value = exoPlayer.currentPosition
-                delay(500) // update every 0.5 seconds
-            }
-        }
-    }
-
-    private var _exoPlayer: ExoPlayer? = null
-    val exoPlayer: ExoPlayer get() = _exoPlayer!!
-
-    fun initExoPlayer(context: Context) {
-        if (_exoPlayer == null) {
-            this.context = context.applicationContext
-            _exoPlayer = ExoPlayer.Builder(context).build()
-        }
-    }
-
-    fun resume() {
-        nowPlayingPaused.value = false
-        if (exoPlayer.mediaItemCount == 0) {
-            val file = nowPlaying.value?.filePath
-            if(file != null){
-                val uri = file.toUri()
-                play(uri)
-            }
-        }
-        if (!exoPlayer.isPlaying) {
-            exoPlayer.play()
-        }
-    }
-
-    fun seekTo(pos : Long){
-        exoPlayer.seekTo(pos)
-    }
-
-    fun pause() {
-        nowPlayingPaused.value = true
-        if (exoPlayer.isPlaying) {
-            exoPlayer.pause()
-        }
-    }
-
-    override fun onCleared() {
-        _exoPlayer?.release()
-        _exoPlayer = null
-        super.onCleared()
-    }
-
-    fun play(uri: Uri) {
-        nowPlayingPaused.value = false
-        _exoPlayer?.apply {
-            setMediaItem(MediaItem.fromUri(uri))
-            prepare()
-            playWhenReady = true
-        }
-        startUpdatingProgress()
-
-    }
-
-    // for now playing drawer
-    private lateinit var db: MusicDataBase
-    internal lateinit var context : Context
-
     private val _dominantColor = MutableStateFlow(Color.Gray)
     val dominantColor: StateFlow<Color> = _dominantColor
 
+    val nowPlayingPaused = mutableStateOf(true)
+
     private val _nowPlaying = MutableStateFlow<MusicFile?>(null)
-    val nowPlaying: StateFlow<MusicFile?> = _nowPlaying
+    val nowPlaying: StateFlow<MusicFile?> get() = _nowPlaying
+
+    val currentPosition = mutableLongStateOf(0L)
+    
+    fun startUpdatingProgress() {
+        viewModelScope.launch {
+            while (true) {
+                currentPosition.value = MusicServiceController.getCurrentPosition()
+                delay(400) // update every 0.5 seconds
+            }
+        }
+    }
+
+    fun setProgress(pos : Long){
+        MusicServiceController.seekToPosition(pos)
+    }
+
+    fun play(){
+        nowPlayingPaused.value = false
+        if (nowPlaying.value != null) {
+            MusicServiceController.playFile(nowPlaying.value!!)
+        } else {
+            MusicServiceController.stop()
+        }
+        startUpdatingProgress()
+    }
+
+    fun resume(){
+        nowPlayingPaused.value = false
+        if(MusicServiceController.noMediaSet()){
+            play()
+        }
+        else{
+            MusicServiceController.resume()
+        }
+    }
+
+    fun pause(){
+        nowPlayingPaused.value = true
+        MusicServiceController.pause()
+    }
+
+    fun initService(context: Context) {
+        startMusicService(context.applicationContext)
+    }
+
+    fun startMusicService(context: Context) {
+        val intent = Intent(context, MusicPlaybackService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+
+    fun setNowPlaying(musicFile: MusicFile) {
+        if(musicFile != nowPlaying.value){
+            viewModelScope.launch {
+                _dominantColor.value = getDominantColorFromUri(musicFile.coverArtUri ?: "")
+                savePlayBackState(musicFile)
+            }
+            _nowPlaying.value = musicFile
+        }
+    }
+
+    // Music Data Base Logic
+    private lateinit var db: MusicDataBase
+    internal lateinit var context : Context
 
     fun loadPlayBackState() {
         viewModelScope.launch {
             val tempMusicFile = db.playBackMusicFileDao().getState()
             tempMusicFile?.let {
-                _nowPlaying.value = MusicFile(
+                setNowPlaying(MusicFile(
                     name = it.name ?: "",
                     id = it.id,
                     artist = it.artist,
@@ -182,7 +129,7 @@ class MainAppScreenViewModel : ViewModel(){
                     filePath = it.filePath,
                     coverArtUri = it.coverArtUri,
                     source = it.source
-                )
+                ))
                 if (it.coverArtUri != null) {
                     _dominantColor.value = getDominantColorFromUri(it.coverArtUri)
                 }
@@ -198,7 +145,7 @@ class MainAppScreenViewModel : ViewModel(){
             music?.let {
                 db.playBackMusicFileDao().saveState(
                     PlayBackMusicFile(
-                        id = 1, // fixed ID for single state entry
+                        id = it.id,
                         name = it.name,
                         artist = it.artist,
                         album = it.album,
@@ -215,21 +162,6 @@ class MainAppScreenViewModel : ViewModel(){
 
     fun colorToInt(color: Color): Int {
         return color.toArgb()
-    }
-
-    fun setNowPlaying(musicFile: MusicFile) {
-        if(musicFile != nowPlaying.value){
-            _nowPlaying.value = musicFile
-            viewModelScope.launch {
-                _dominantColor.value = getDominantColorFromUri(musicFile.coverArtUri ?: "")
-            }
-            savePlayBackState(musicFile)
-            val file = musicFile.filePath
-            if (file != null) {
-                val uri = file.toUri()
-                play(uri)
-            }
-        }
     }
 
     fun setContextandDB(context: Context){

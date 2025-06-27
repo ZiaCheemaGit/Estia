@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val fileExplorerViewModel = viewModel<FileExplorerViewModel>()
             fileExplorerViewModel.setContentResolverAndInitDB(contentResolver, context = this)
-
+            fileExplorerViewModel.loadMusicFiles()
             Main(fileExplorerViewModel)
         }
     }
