@@ -3,7 +3,13 @@ package com.example.estia.PlayerDrawer
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,20 +82,22 @@ import com.example.estia.R
 import com.example.estia.SpotifyBold
 import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.Dp
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.toString
-
+import java.io.File
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun playerDrawer(
     playListViewModel: PlayListScreenViewModel,
     mainAppScreenViewModel: MainAppScreenViewModel,
-    expandableDrawerViewModel: PlayerDrawerViewModel = viewModel(),
+    expandableDrawerViewModel: PlayerDrawerViewModel,
     innerPadding: PaddingValues
 ) {
 
@@ -290,24 +298,20 @@ fun SmallMusicPlayer(
                 .width(70.dp)
         ){
             val coverArt = nowPlaying.coverArtUri
-            if (coverArt == null){
+
+            if (coverArt == null) {
                 Image(
                     painter = painterResource(id = R.drawable.music_icon_compressed),
-                    contentDescription = "Simple Music Icon",
+                    contentDescription = "Cover Art",
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 5.dp)
+                        .clip(RoundedCornerShape(12.dp))
                 )
-            }
-            else{
-                val context = LocalContext.current
-                val bitmap = BitmapFactory.decodeStream(
-                    context.contentResolver.openInputStream(Uri.parse(coverArt))
-                )
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Cover Art",
+            } else {
+                AsyncImage(
+                    model = coverArt,
+                    contentDescription = "Default Cover Art",
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 5.dp, vertical = 5.dp)
@@ -348,12 +352,17 @@ fun SmallMusicPlayer(
                         .height(3.dp) // Thin line here
                         .background(Color.Gray, shape = RoundedCornerShape(1.dp))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(progress.dp)
-                            .background(Color.White, shape = RoundedCornerShape(1.dp))
-                    )
+                    if(!mainAppScreenViewModel.isLoadingSongURL.value){
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(progress.dp)
+                                .background(Color.White, shape = RoundedCornerShape(1.dp))
+                        )
+                    }
+                    else{
+                        SmallSeekBarPlaceholder()
+                    }
                 }
             }
         }
@@ -362,8 +371,11 @@ fun SmallMusicPlayer(
             modifier = Modifier.fillMaxHeight(), // or fillMaxSize()
             verticalArrangement = Arrangement.Center,
         ) {
+            val isPaused by mainAppScreenViewModel.isPaused.collectAsState()
+
+
             var iconId = R.drawable.play_icon
-            if (!mainAppScreenViewModel.nowPlayingPaused.value){
+            if (!isPaused){
                 iconId = R.drawable.pause_icon
             }
             else{
@@ -372,7 +384,7 @@ fun SmallMusicPlayer(
             IconButton(
                 onClick = {
                     // your action
-                    if (mainAppScreenViewModel.nowPlayingPaused.value) {
+                    if (isPaused) {
                         mainAppScreenViewModel.resume()
                     } else {
                         mainAppScreenViewModel.pause()
@@ -489,15 +501,18 @@ fun LargeMusicPlayer(
         ) {
 
             item{
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                ){
-                    Spacer(Modifier.width(20.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    // Close icon aligned to start
                     Box(
                         modifier = Modifier
+                            .align(Alignment.CenterStart)
                             .size(20.dp)
                             .clickable(
-                                indication = null, // disables ripple effect
+                                indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ) {
                                 expandableDrawerViewModel.collapse()
@@ -506,16 +521,15 @@ fun LargeMusicPlayer(
                         Image(
                             painter = painterResource(id = R.drawable.drop_down_icon),
                             contentDescription = "Close Now Playing Drawer",
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.fillMaxSize(),
                             colorFilter = ColorFilter.tint(Color.White)
                         )
                     }
 
-
-                    Spacer(Modifier.width(75.dp))
-
+                    // Centered text
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = "Now Playing",
@@ -523,12 +537,14 @@ fun LargeMusicPlayer(
                             fontFamily = SpotifyBold,
                             color = nameColor,
                         )
-                        Text(
-                            text = "From ${nowPlaying?.source}",
-                            fontSize = 16.sp,
-                            fontFamily = SpotifyBold,
-                            color = nameColor,
-                        )
+                        nowPlaying?.source?.let { source ->
+                            Text(
+                                text = "From $source",
+                                fontSize = 14.sp,
+                                fontFamily = SpotifyBold,
+                                color = nameColor.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -539,7 +555,7 @@ fun LargeMusicPlayer(
                     modifier = Modifier
                         .height(360.dp)
                         .width(360.dp)
-                        .clip(RoundedCornerShape(20.dp)),
+                        .clip(RoundedCornerShape(10.dp)),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val coverArt = nowPlaying?.coverArtUri
@@ -597,14 +613,19 @@ fun LargeMusicPlayer(
             }
 
             item {
-                SeekBar(
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    onSeek = { newPosition ->
-                        mainAppScreenViewModel.setProgress(newPosition)
-                    },
-                    playNext = playNext
-                )
+                if(mainAppScreenViewModel.isLoadingSongURL.value){
+                    LargeSeekBarPlaceholder()
+                }
+                else{
+                    SeekBar(
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        onSeek = { newPosition ->
+                            mainAppScreenViewModel.setProgress(newPosition)
+                        },
+                        playNext = playNext
+                    )
+                }
             }
 
             item {
@@ -636,12 +657,14 @@ fun LargeMusicPlayer(
                         .width(360.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ){
-                    var iconId = R.drawable.play_icon_large
-                    if (!mainAppScreenViewModel.nowPlayingPaused.value) {
-                        iconId = R.drawable.pause_icon_large
+                    val isPaused by mainAppScreenViewModel.isPaused.collectAsState()
+
+                    val iconId = if (isPaused) {
+                        R.drawable.play_icon_large
                     } else {
-                        iconId = R.drawable.play_icon_large
+                        R.drawable.pause_icon_large
                     }
+
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -669,7 +692,7 @@ fun LargeMusicPlayer(
                         }
                         IconButton(
                             onClick = {
-                                if (mainAppScreenViewModel.nowPlayingPaused.value) {
+                                if (isPaused) {
                                     mainAppScreenViewModel.resume()
                                 } else {
                                     mainAppScreenViewModel.pause()
@@ -810,8 +833,6 @@ fun SeekBar(
     }
 }
 
-
-
 @Composable
 fun LyricsScreen(
     nameColor : Color,
@@ -923,6 +944,97 @@ fun LyricsScreen(
     }
 
 }
+
+@Composable
+fun SmallSeekBarPlaceholder(modifier: Modifier = Modifier) {
+    val shimmerWidth = 80.dp
+    val shimmerColor = Color.White.copy(alpha = 0.6f)
+    val trackColor = Color.Gray.copy(alpha = 0.5f)
+
+    val density = LocalDensity.current
+    var barWidthPx by remember { mutableStateOf(0f) }
+
+    val infiniteTransition = rememberInfiniteTransition()
+    val offsetX by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = barWidthPx,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    Box(
+        modifier = modifier
+            .onGloballyPositioned {
+                barWidthPx = it.size.width.toFloat()
+            }
+            .clip(RoundedCornerShape(50))
+            .background(trackColor)
+            .height(3.dp)
+            .fillMaxWidth()
+    ) {
+        val shimmerOffset1 = (offsetX % barWidthPx)
+        val shimmerOffset2 = (shimmerOffset1 - barWidthPx)
+
+        listOf(shimmerOffset1, shimmerOffset2).forEach { offset ->
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(offset.toInt(), 0) }
+                    .width(shimmerWidth)
+                    .fillMaxHeight()
+                    .background(shimmerColor, shape = RoundedCornerShape(50))
+            )
+        }
+    }
+}
+
+@Composable
+fun LargeSeekBarPlaceholder() {
+    val shimmerWidth = 80.dp
+    val shimmerColor = Color.White.copy(alpha = 0.6f)
+    val trackColor = Color.Gray.copy(alpha = 0.5f)
+
+    val density = LocalDensity.current
+    var barWidthPx by remember { mutableStateOf(0f) }
+
+    val infiniteTransition = rememberInfiniteTransition()
+    val offsetX by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = barWidthPx,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .padding(vertical = 8.dp)
+            .onGloballyPositioned {
+                barWidthPx = it.size.width.toFloat()
+            }
+            .clip(RoundedCornerShape(50))
+            .background(trackColor)
+            .height(3.dp)
+            .width(360.dp)
+    ) {
+        val shimmerOffset1 = (offsetX % barWidthPx)
+        val shimmerOffset2 = (shimmerOffset1 - barWidthPx)
+
+        listOf(shimmerOffset1, shimmerOffset2).forEach { offset ->
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(offset.toInt(), 0) }
+                    .width(shimmerWidth)
+                    .fillMaxHeight()
+                    .background(shimmerColor, shape = RoundedCornerShape(50))
+            )
+        }
+    }
+}
+
+
 
 
 

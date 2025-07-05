@@ -39,12 +39,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
@@ -52,9 +54,12 @@ import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.R
 import com.example.estia.SpotifyBold
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 
 @Composable
 fun RenderSearchScreen(
@@ -62,6 +67,13 @@ fun RenderSearchScreen(
     viewModel: SearchScreenViewModel,
     mainAppScreenViewModel : MainAppScreenViewModel
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        if (!Python.isStarted()) {
+            Python.start(AndroidPlatform(context))
+        }
+    }
+
     val selectedfilter = viewModel.selectedFilter
     var searchQuery = viewModel.searchQuery.value
 
@@ -125,6 +137,9 @@ fun RenderSearchScreen(
                         }
                     }
                 }
+                else if(searchQuery == ""){
+
+                }
                 else{
                     item{
                         CircularProgressIndicator()
@@ -132,7 +147,11 @@ fun RenderSearchScreen(
                 }
 
                 items(viewModel.searchResults.value.size) { index ->
-                    SongItemComposable(trackSearchResults[index])
+                    SongItemComposable(
+                        mainAppScreenViewModel,
+                        viewModel,
+                        musicFile = trackSearchResults[index]
+                    )
                 }
 
                 item{
@@ -212,11 +231,14 @@ fun RenderSearchScreen(
 
 @Composable
 fun SongItemComposable(
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    searchScreenViewModel: SearchScreenViewModel,
     musicFile: DeezerTrack,
 ) {
-
+    val scope = rememberCoroutineScope()
+    val thisContext = LocalContext.current
     var name = musicFile.title
-    var artist = musicFile.artist.name
+    var artist : String = musicFile.artist.name
     val coverArt = musicFile.album.cover_medium
     if (name.length > 45) name = name.take(45)
     if (artist.length > 45) artist = artist.take(45) + "..."
@@ -238,6 +260,23 @@ fun SongItemComposable(
                     .fillMaxWidth()
                     .padding(vertical = 2.dp)
                     .height(65.dp)
+                    .clickable(onClick = {
+                        scope.launch {
+
+                            val localMusic = MusicFile(
+                                name = musicFile.title,
+                                artist = artist,
+                                album = musicFile.album.title,
+                                duration = musicFile.duration.toLong() * 1000,
+                                filePath = null,
+                                coverArtUri = musicFile.album.cover_xl,
+                                source = "....",
+                                id = musicFile.id
+                            )
+
+                            mainAppScreenViewModel.setNowPlaying(localMusic)
+                        }
+                    })
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(

@@ -308,8 +308,9 @@ fun MusicListView(
             }
 
             // now playing based next Up Songs : Local Storage Queue
-            val localStorageQueue = playListScreenViewModel.visibleLocalStorageQueue.value
-            items(localStorageQueue.size) { index ->
+            if(mainAppScreenViewModel.nowPlaying.value?.source == "Local Storage"){
+                val localStorageQueue = playListScreenViewModel.visibleLocalStorageQueue.value
+                items(localStorageQueue.size) { index ->
 
                     val musicNameColor = Color.White
                     val artistColor = Color.Gray
@@ -335,7 +336,7 @@ fun MusicListView(
                                 Row(
                                     Modifier.height(30.dp),
                                     verticalAlignment = Alignment.CenterVertically
-                                ){
+                                ) {
                                     Text(
                                         modifier = Modifier.weight(1f),
                                         text = "Next In : Local Storage",
@@ -415,6 +416,7 @@ fun MusicListView(
                         }
                     }
                 }
+            }
 
             // Bottom Space
             item{

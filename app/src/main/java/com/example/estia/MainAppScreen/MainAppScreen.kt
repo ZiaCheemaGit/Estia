@@ -38,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.FileExplorerScreen.RenderFileExplorerScreen
+import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.R
 import com.example.estia.SpotifyBold
@@ -46,6 +47,7 @@ import com.example.estia.PlayListScreen.RenderPlayListScreen
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.SearchScreen.RenderSearchScreen
 import com.example.estia.SearchScreen.SearchScreenViewModel
+import kotlinx.coroutines.launch
 import kotlin.math.exp
 
 @Composable
@@ -57,13 +59,16 @@ fun MainAppScreen(
         
     RequestMediaPlaybackPermission()
 
-    val mainAppScreenViewModel = viewModel<MainAppScreenViewModel>()
+    val mainAppScreenViewModel : MainAppScreenViewModel = viewModel()
     val playListScreenViewModel : PlayListScreenViewModel = viewModel()
     val searchScreenViewModel : SearchScreenViewModel = viewModel()
+    val playerDrawerViewModel : PlayerDrawerViewModel = viewModel()
 
     mainAppScreenViewModel.setContextandDB(LocalContext.current)
     mainAppScreenViewModel.initService(LocalContext.current)
     mainAppScreenViewModel.loadPlayBackState()
+
+    searchScreenViewModel.getCountryFromIP()
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
 
@@ -86,6 +91,7 @@ fun MainAppScreen(
         content = { innerPadding ->
             Box(){
                 when (mainAppScreenViewModel.currentScreen) {
+
                     "ExploreScreen" -> RenderExploreScreen(mainAppScreenViewModel)
 
                     "SearchScreen" -> RenderSearchScreen(
@@ -115,12 +121,13 @@ fun MainAppScreen(
                         mainAppScreenViewModel)
 
                 }
+                
                 if(nowPlaying != null){
                     playerDrawer(
                         playListScreenViewModel,
                         mainAppScreenViewModel,
                         innerPadding = innerPadding,
-                        
+                        expandableDrawerViewModel = playerDrawerViewModel
                     )
                 }
 

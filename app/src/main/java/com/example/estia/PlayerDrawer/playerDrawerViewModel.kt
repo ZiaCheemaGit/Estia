@@ -182,8 +182,8 @@ class PlayerDrawerViewModel : ViewModel() {
                 val url = "https://api.lyrics.ovh/v1/${a}/${title}"
                 val connection = URL(url).openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.connectTimeout = 1_500
-                connection.readTimeout = 1_500
+                connection.connectTimeout = 5_000
+                connection.readTimeout = 5_000
 
                 if (connection.responseCode == 200) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
@@ -196,8 +196,9 @@ class PlayerDrawerViewModel : ViewModel() {
                         .filter { it.isNotEmpty() }
                         .joinToString("\n")
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // Ignore and try next artist
+                Log.d("LyricsFetcher", "Error fetching lyrics from OVH: ${e.message}")
             }
         }
 

@@ -285,7 +285,6 @@ fun MusicListView(
     innerPadding : PaddingValues,
     expandableDrawerViewModel: PlayerDrawerViewModel
 ) {
-    var selectedfilter = fileExplorerViewModel.selectedFilter
 
     val isScrolledDown by remember {
         derivedStateOf {
@@ -344,88 +343,6 @@ fun MusicListView(
                 Spacer(Modifier.height(innerPadding.calculateTopPadding()))
             }
 
-            // Filter Options
-            item{
-                if(!showSearchBar.value
-                ) {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        item{
-                            Card(
-                                modifier = Modifier
-                                    .padding(bottom = 10.dp)
-                                    .height(35.dp)
-                                    .width(110.dp),
-                                colors = CardDefaults.cardColors(Color(0xFFD8BFD8))
-                            ) {
-                                Text(
-                                    modifier = Modifier.padding(10.dp),
-                                    text = "Downloaded",
-                                    fontFamily = SpotifyBold,
-                                    color = Color.White,
-                                )
-                            }
-                            Spacer(Modifier.width(10.dp))
-                        }
-                        items(fileExplorerViewModel.filterOptionsList.size){ index ->
-
-                            var text = fileExplorerViewModel.filterOptionsList[index]
-                            var cardColor = Color.Gray
-
-                            if(selectedfilter.value == text){
-                                    cardColor = Color(0xFFD8BFD8)
-                                }
-                            Card(
-                                modifier = Modifier
-                                    .clickable(onClick = {
-                                        fileExplorerViewModel.applyFilter(text)
-                                    })
-                                    .padding(bottom = 10.dp)
-                                    .height(35.dp),
-                                colors = CardDefaults.cardColors(cardColor)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = text,
-                                        fontFamily = SpotifyBold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(10.dp))
-                        }
-                        item{
-                            var col = mutableStateOf(Color.Gray)
-                            Card(
-                                modifier = Modifier
-                                    .padding(bottom = 10.dp)
-                                    .height(35.dp)
-                                    .width(135.dp)
-                                    .clickable(onClick = {
-                                        col.value = Color(0xFFD8BFD8)
-                                        fileExplorerViewModel.refreshMusicFiles()
-                                    }),
-                                colors = CardDefaults.cardColors(col.value)
-                            ) {
-                                Text(
-                                    modifier = Modifier.padding(10.dp),
-                                    text = "ReScan All Files",
-                                    fontFamily = SpotifyBold,
-                                    color = Color.White,
-                                )
-                            }
-                            Spacer(Modifier.width(10.dp))
-                        }
-                    }
-                }
-            }
-
             // No Music Found
             item{
                 if(list.size == 0){
@@ -444,58 +361,13 @@ fun MusicListView(
             }
 
             // songs list
-            if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[0]){
-                items(list.size) { index ->
-                    SongItemComposable(
-                        list[index],
-                        playListScreenViewModel,
-                        mainAppScreenViewModel,
-                        fileExplorerViewModel
-                    )
-                }
-            }
-
-            // Albums List
-            if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[1]){
-
-                for (i in list.indices step 2) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            AlbumItemComposable(music = list[i])
-                            if (i + 1 < list.size) {
-                                AlbumItemComposable(music = list[i + 1])
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Artists list
-            if(selectedfilter.value == fileExplorerViewModel.filterOptionsList[2]){
-                for (i in list.indices step 2) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            ArtistItemComposable(music = list[i])
-                            if (i + 1 < list.size) {
-                                ArtistItemComposable(music = list[i + 1])
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
+            items(list.size) { index ->
+                SongItemComposable(
+                    list[index],
+                    playListScreenViewModel,
+                    mainAppScreenViewModel,
+                    fileExplorerViewModel
+                )
             }
 
             // Bottom Space
@@ -630,9 +502,6 @@ fun MusicListView(
                         }
                     }
 
-                    LaunchedEffect(selectedfilter) {
-                        fileExplorerViewModel.applyFilter(selectedfilter.value)
-                    }
 
                 }
             }
@@ -730,7 +599,6 @@ fun SongItemComposable(
                         searchQuery.value = ""
                         showSearchBar.value = false
                         mainAppScreenViewModel.setNowPlaying(musicFile)
-                        mainAppScreenViewModel.play()
                     }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -777,78 +645,6 @@ fun SongItemComposable(
                     Spacer(Modifier.width(20.dp))
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ArtistItemComposable(music: MusicFile) {
-    val artist = music.artist ?: "Unknown Artist"
-
-    Text(text = artist, color = Color.White)
-}
-
-@Composable
-fun AlbumItemComposable(music: MusicFile) {
-
-    Column(
-        modifier = Modifier.clickable(onClick = {
-
-        })
-    ){
-        Column(
-            modifier = Modifier
-                .height(170.dp)
-                .width(170.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val coverArt = music.coverArtUri
-            if (coverArt == null) {
-                Image(
-                    painter = painterResource(id = R.drawable.music_icon_compressed),
-                    contentDescription = "Simple Music Icon",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp))
-                )
-            } else {
-                AsyncImage(
-                    model = coverArt,
-                    contentDescription = "Cover Art",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp))
-                )
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Column(
-            modifier = Modifier
-                .height(50.dp)
-                .width(170.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            var albumName = music.album ?: "Unknown Album"
-            if (albumName.length > 15) albumName = albumName.take(15) + "..."
-
-            var artistName = music.artist ?: "Unknown Artist"
-            if (artistName.length > 20) artistName = artistName.take(20) + "..."
-
-            Text(
-                maxLines = 1,
-                text = albumName,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontFamily = SpotifyBold
-            )
-            Spacer(Modifier.height(5.dp))
-            Text(
-                maxLines = 1,
-                text = artistName,
-                color = Color.Gray,
-                fontSize = 12.sp,
-                fontFamily = SpotifyBold
-            )
         }
     }
 }

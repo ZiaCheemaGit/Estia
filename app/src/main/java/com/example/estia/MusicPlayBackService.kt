@@ -5,22 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.core.net.toUri
+import androidx.media3.common.Player
 import kotlinx.coroutines.flow.MutableStateFlow
-
-
-// This is now moved to MusicPlaybackService.kt
 
 class MusicPlaybackService : LifecycleService() {
     lateinit var player: ExoPlayer
 
     override fun onCreate() {
         super.onCreate()
+
         player = ExoPlayer.Builder(this).build()
+
         MusicServiceController.connect(this)
 
         startForegroundServiceWithNotification()
@@ -74,19 +75,21 @@ class MusicPlaybackService : LifecycleService() {
 
 }
 
-
-
-
 object MusicServiceController {
 
     private var service: MusicPlaybackService? = null
 
-    // status
-    var isPaused = MutableStateFlow<Boolean>(true)
+    val isPaused = MutableStateFlow(true)
 
     // Called by the service itself to register
     fun connect(service: MusicPlaybackService) {
         this.service = service
+
+        this.service?.player?.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                this@MusicServiceController.isPaused.value = !isPlaying
+            }
+        })
     }
 
     fun getCurrentPosition() : Long{
@@ -113,12 +116,23 @@ object MusicServiceController {
                 play()
             }
         }
+        else{
+            service?.player?.apply {
+                stop()
+                clearMediaItems()
+                seekTo(0)
+                Log.d("Player", "Cleared media items due to null file path.")
+            }
+        }
     }
 
     fun noMediaSet(): Boolean {
         return service?.player?.mediaItemCount == 0
     }
 
+    fun clearPlayer(){
+        service?.player?.clearMediaItems()
+    }
 
     fun pause(){
         service?.player?.pause()

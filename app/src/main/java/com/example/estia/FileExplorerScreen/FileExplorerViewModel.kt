@@ -27,29 +27,6 @@ import java.util.Locale
 
 class FileExplorerViewModel : ViewModel() {
 
-    // Filter Logic
-    val filterOptionsList = arrayOf("Songs", "Albums", "Artists")
-
-    var selectedFilter = mutableStateOf(filterOptionsList[0])
-
-    fun applyFilter(newFilter: String) {
-        if(selectedFilter.value != newFilter){
-            viewModelScope.launch {
-                isLoading.value = true
-                delay(100) // simulate/allow recomposition/render prep
-                if (newFilter == filterOptionsList[0]) {
-                    showSongs()
-                } else if (newFilter == filterOptionsList[1]) {
-                    showAlbums()
-                } else if (newFilter == filterOptionsList[2]) {
-                    showArtists()
-                }
-                isLoading.value = false
-                selectedFilter.value = newFilter
-            }
-        }
-    }
-
     // search Logic
     val searchQuery = mutableStateOf("")
     val showSearchBar = mutableStateOf(false)
@@ -94,31 +71,6 @@ class FileExplorerViewModel : ViewModel() {
 
     val _musicList = MutableStateFlow(listOf<MusicFile>())
     val musicList = _musicList
-
-    fun showSongs() {
-        _musicList.value = permanentAllSongsList.value // original song list
-    }
-
-    fun showAlbums() {
-        _musicList.value = permanentAllSongsList.value
-            .distinctBy { it.album?.lowercase(Locale.ROOT)?.trim() } // Normalize album
-            .sortedBy { it.album?.lowercase(Locale.ROOT)?.trim() ?: "" }
-    }
-
-    fun showArtists() {
-        val expanded = permanentAllSongsList.value.flatMap { music ->
-            val artists = music.artist
-                ?.split(",")
-                ?.map { it.trim() }
-                ?: listOf("Unknown Artist")
-
-            artists.map { artist -> music.copy(artist = artist) }
-        }
-
-        _musicList.value = expanded
-            .distinctBy { it.artist?.lowercase(Locale.ROOT)?.trim() }
-            .sortedBy { it.artist?.lowercase(Locale.ROOT)?.trim() }
-    }
 
     private val _permissionGranted = MutableStateFlow(false)
     val permissionGranted : StateFlow<Boolean> = _permissionGranted

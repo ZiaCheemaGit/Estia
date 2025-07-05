@@ -16,8 +16,11 @@ class PlayListScreenViewModel : ViewModel() {
     private var playQueueIndex = 0
     private var localStorageQueueIndex = 0
 
+    private var nowPlaying : MusicFile? = null
+
     fun setNowPlaying(musicFile: MusicFile?){
         if(musicFile != null){
+            nowPlaying = musicFile
             localStorageQueueIndex = localStorageQueue.value.indexOf(musicFile) + 1
             updateVisibleLocalStorageQueue()
         }
@@ -41,7 +44,9 @@ class PlayListScreenViewModel : ViewModel() {
             updateVisiblePlayQueue()
             return nextSong
         }
-        else if(localStorageQueue.value.isNotEmpty() && localStorageQueueIndex < localStorageQueue.value.size){
+        else if(nowPlaying?.source == "Local Storage" &&
+            localStorageQueue.value.isNotEmpty() &&
+            localStorageQueueIndex < localStorageQueue.value.size){
             val nextSong = localStorageQueue.value[localStorageQueueIndex]
             localStorageQueueIndex++
             updateVisibleLocalStorageQueue()

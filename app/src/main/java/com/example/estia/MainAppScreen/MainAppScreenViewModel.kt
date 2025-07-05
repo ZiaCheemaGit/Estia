@@ -29,33 +29,75 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.widget.RemoteViews
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.core.app.NotificationCompat
+import com.chaquo.python.PyObject
+import com.chaquo.python.Python
 import com.example.estia.MainActivity
 import com.example.estia.MusicPlaybackService
 import com.example.estia.MusicServiceController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
-
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URLEncoder
+import java.util.regex.Pattern
+import kotlin.coroutines.cancellation.CancellationException
 
 class MainAppScreenViewModel : ViewModel(){
+    private lateinit var _pyModule: PyObject
+    val pyModule: PyObject
+        get() = _pyModule
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val py = Python.getInstance()
+                _pyModule = py.getModule("ytdlp_wrapper")
+                Log.d("PythonInit", "Python module preloaded")
+            } catch (e: Exception) {
+                Log.e("PythonInit", "Error loading Python module", e)
+            }
+        }
+    }
+    //
+    // Now Playing Logic
+    //
+    private var fetchAudioJob: Job? = null
 
+    private var loading = false
+
+    val isLoadingSongURL = mutableStateOf(false)
     private val _dominantColor = MutableStateFlow(Color.Gray)
     val dominantColor: StateFlow<Color> = _dominantColor
 
-    val nowPlayingPaused = mutableStateOf(true)
+    val isPaused = MusicServiceController.isPaused
 
     private val _nowPlaying = MutableStateFlow<MusicFile?>(null)
     val nowPlaying: StateFlow<MusicFile?> get() = _nowPlaying
+
+    fun isNewSong(song : MusicFile) : Boolean{
+        return nowPlaying.value?.id != song.id
+    }
 
     val currentPosition = mutableLongStateOf(0L)
     
     fun startUpdatingProgress() {
         viewModelScope.launch {
             while (true) {
-                currentPosition.value = MusicServiceController.getCurrentPosition()
+
+                currentPosition.longValue = MusicServiceController.getCurrentPosition()
+
                 delay(400) // update every 0.5 seconds
+
             }
         }
     }
@@ -65,7 +107,6 @@ class MainAppScreenViewModel : ViewModel(){
     }
 
     fun play(){
-        nowPlayingPaused.value = false
         if (nowPlaying.value != null) {
             MusicServiceController.playFile(nowPlaying.value!!)
         } else {
@@ -75,7 +116,6 @@ class MainAppScreenViewModel : ViewModel(){
     }
 
     fun resume(){
-        nowPlayingPaused.value = false
         if(MusicServiceController.noMediaSet()){
             play()
         }
@@ -85,8 +125,11 @@ class MainAppScreenViewModel : ViewModel(){
     }
 
     fun pause(){
-        nowPlayingPaused.value = true
         MusicServiceController.pause()
+    }
+
+    fun clearPlayer(){
+        MusicServiceController.clearPlayer()
     }
 
     fun initService(context: Context) {
@@ -102,21 +145,90 @@ class MainAppScreenViewModel : ViewModel(){
         }
     }
 
+    private var nowPlayingJob: Job? = null
+
     fun setNowPlaying(musicFile: MusicFile) {
-        if(musicFile != nowPlaying.value){
-            viewModelScope.launch {
-                _dominantColor.value = getDominantColorFromUri(musicFile.coverArtUri ?: "")
-                savePlayBackState(musicFile)
+        if (isNewSong(musicFile)) {
+
+            // Cancel previous job if running
+            nowPlayingJob?.cancel()
+
+            nowPlayingJob = viewModelScope.launch {
+                try {
+                    clearPlayer()
+                    _nowPlaying.value = musicFile
+                    savePlayBackState(musicFile)
+
+                    if (musicFile.source == "....") {
+                        isLoadingSongURL.value = true
+
+                        // Download image and cache it
+                        val imageUri = downloadAndCacheSingleImage(context, musicFile.coverArtUri!!)
+                        _nowPlaying.value = nowPlaying.value?.copy(coverArtUri = imageUri)
+
+                        // Get dominant color
+                        _dominantColor.value = getDominantColorFromUri(imageUri.toString())
+
+                        _nowPlaying.value = nowPlaying.value?.copy(source = "Search")
+
+                        // Fetch audio stream URL
+                        val url = fetchAudioStreamUrl(
+                            nowPlaying.value?.artist.orEmpty(),
+                            nowPlaying.value?.name.orEmpty()
+                        )
+
+                        _nowPlaying.value = nowPlaying.value?.copy(filePath = url.toString())
+                        if(!loading){
+                            play()
+                        }
+
+                        isLoadingSongURL.value = false
+                        // Set duration
+                        val duration = getMetadataDuration(url.toString())
+                        _nowPlaying.value = nowPlaying.value?.copy(duration = duration)
+
+                    }
+                    else{
+                        _dominantColor.value = getDominantColorFromUri(nowPlaying.value?.coverArtUri.toString())
+                        if(!loading){
+                            play()
+                        }
+                    }
+                    loading = false
+                    savePlayBackState(nowPlaying.value)
+                } catch (e: CancellationException) {
+                    Log.d("setNowPlaying", "Previous setNowPlaying job was cancelled")
+                    isLoadingSongURL.value = false
+                } catch (e: Exception) {
+                    Log.e("setNowPlaying", "Error setting now playing", e)
+                    isLoadingSongURL.value = false
+                }
             }
-            _nowPlaying.value = musicFile
         }
     }
 
+    suspend fun getMetadataDuration(url: String): Long = withContext(Dispatchers.IO) {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(url, HashMap())
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            durationStr?.toLongOrNull() ?: 0L
+        } catch (e: Exception) {
+            Log.e("Metadata", "Error retrieving metadata", e)
+            0L
+        } finally {
+            retriever.release()
+        }
+    }
+
+    //
     // Music Data Base Logic
+    //
     private lateinit var db: MusicDataBase
     internal lateinit var context : Context
 
     fun loadPlayBackState() {
+        loading = true
         viewModelScope.launch {
             val tempMusicFile = db.playBackMusicFileDao().getState()
             tempMusicFile?.let {
@@ -168,6 +280,10 @@ class MainAppScreenViewModel : ViewModel(){
         this.context = context
         db = MusicDataBase.Companion.getInstance(this.context)
     }
+
+    //
+    // Screen Change Logic
+    //
 
     var isExpandedNowPlaying by mutableStateOf(false)
 
@@ -246,59 +362,107 @@ class MainAppScreenViewModel : ViewModel(){
         else
             String.format("%d:%02d", minutes, seconds)
     }
-}
 
+    //
+    // Youtube
+    //
 
-class PlayerNotificationService(private val context: Context) {
-    private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
-            as NotificationManager
+    // yt dlp python
+    suspend fun fetchAudioStreamUrl(
+        artist: String,
+        songName: String
+    ): String? {
+        // Cancel the previous job if it exists
+        fetchAudioJob?.cancelAndJoin()
 
-    fun showNotification(bitmap: String, title: String, artist: String){
+        // Declare a result variable to hold the return value
+        var resultUrl: String? = null
 
-        val remoteViews = RemoteViews(context.packageName, R.layout.custom_notification).apply{
-            setTextViewText(R.id.notification_song_title, title)
-            setTextViewText(R.id.notification_song_artist, artist)
-            setImageViewBitmap(R.id.notification_cover, uriStringToBitmap(bitmap))
-            // TODO: Add pending intent for play/pause
+        // Launch new job and await its completion
+        fetchAudioJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val fullQuery = "$songName $artist"
+                val result = pyModule.callAttr("get_song_audio_url", fullQuery)
+
+                val url = result.callAttr("get", "url")?.toString()
+                val error = result.callAttr("get", "error")?.toString()
+
+                if (error != null) {
+                    Log.e("AudioFetcher", "Error from Python: $error")
+                    resultUrl = null
+                } else {
+                    Log.d("AudioFetcher", "Fetched audio URL: $url")
+                    resultUrl = url
+                }
+            } catch (e: CancellationException) {
+                Log.d("AudioFetcher", "Job cancelled")
+            } catch (e: Exception) {
+                Log.e("AudioFetcher", "Exception during fetch", e)
+                resultUrl = null
+            }
         }
 
-        val activityIntent = Intent(context, MainActivity::class.java)
-        val activityPendingIntent = PendingIntent.getActivity(
-            context,
-            1,
-            activityIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, "media_playback_channel")
-            .setSmallIcon(R.drawable.main_logo)
-            .setCustomContentView(remoteViews)
-            .setOngoing(true)
-            .setContentIntent(activityPendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setDefaults(0)
-            .build()
-
-        notificationManager.notify(1, notification)
+        // Wait for job to finish and return the result
+        fetchAudioJob?.join()
+        return resultUrl
     }
 
+    private var downloadImageJob: Deferred<String?>? = null
 
-    private fun uriStringToBitmap(uriString: String): Bitmap? {
-        return try {
-            val uri = Uri.parse(uriString)
-            val inputStream = context.contentResolver.openInputStream(uri)
-            BitmapFactory.decodeStream(inputStream)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+    suspend fun downloadAndCacheSingleImage(context: Context, url: String): String? {
+        // Cancel previous job if any
+        downloadImageJob?.cancelAndJoin()
+
+        // Launch new job
+        downloadImageJob = CoroutineScope(Dispatchers.IO).async {
+            try {
+                // ✅ Create (or reference) dedicated subfolder in cache
+                val imageCacheDir = File(context.cacheDir, "cover_images")
+                if (!imageCacheDir.exists()) {
+                    imageCacheDir.mkdirs()
+                }
+
+                // ✅ Delete all existing files in that folder
+                imageCacheDir.listFiles()?.forEach { it.delete() }
+
+                // ✅ Create a new unique file name
+                val fileName = "cover_${System.currentTimeMillis()}.jpg"
+                val file = File(imageCacheDir, fileName)
+
+                Log.d("DownloadImage", "Starting image download from: $url")
+
+                // ✅ Download the image
+                val client = OkHttpClient()
+                val request = Request.Builder().url(url).build()
+                val response = client.newCall(request).execute()
+
+                if (response.isSuccessful) {
+                    response.body?.byteStream()?.use { inputStream ->
+                        FileOutputStream(file).use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                        Log.d("DownloadImage", "Image saved to: ${file.absolutePath}")
+                        return@async file.absolutePath
+                    } ?: run {
+                        Log.e("DownloadImage", "Input stream is null")
+                        return@async null
+                    }
+                } else {
+                    Log.e("DownloadImage", "Request failed with code: ${response.code}")
+                    return@async null
+                }
+
+            } catch (e: Exception) {
+                if (e is CancellationException) {
+                    Log.d("DownloadImage", "Download was cancelled")
+                } else {
+                    Log.e("DownloadImage", "Error downloading image", e)
+                }
+                return@async null
+            }
         }
-    }
 
-    companion object{
-        const val PLAYER_CHANNEL_ID = "player_channel"
+        return downloadImageJob?.await()
     }
 }
 

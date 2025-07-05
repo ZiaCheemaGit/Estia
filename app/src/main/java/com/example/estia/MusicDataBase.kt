@@ -51,10 +51,10 @@ data class MusicFile(
     val id : Long,
     val artist : String? = null,
     val album : String? = null,
-    val duration: Long? = null,
-    val filePath : String? = null,
-    val coverArtUri : String? = null,
-    val source : String?,
+    var duration: Long? = null,
+    var filePath : String? = null,
+    var coverArtUri : String? = null,
+    var source : String?,
 )
 
 

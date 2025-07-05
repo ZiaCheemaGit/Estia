@@ -1,5 +1,6 @@
 package com.example.estia
 
+
 import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -24,10 +25,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.LoginScreen.LoginScreen
 import com.example.estia.MainAppScreen.MainAppScreen
-import com.example.estia.MainAppScreen.MainAppScreenViewModel
 
 @Composable
 fun Main(fileExplorerViewModel: FileExplorerViewModel)
@@ -76,6 +78,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_MyApp)
         super.onCreate(savedInstanceState)
+        if (!Python.isStarted()) {
+            Python.start(AndroidPlatform(this))
+        }
         enableEdgeToEdge()
         setContent {
             val fileExplorerViewModel = viewModel<FileExplorerViewModel>()

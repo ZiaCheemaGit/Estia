@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("org.jetbrains.kotlin.kapt")
+    id("com.chaquo.python") version "16.1.0"
 }
 
 android {
@@ -16,6 +17,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,12 +46,23 @@ android {
     }
 }
 
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        pip{
+            install("yt-dlp")
+        }
+
+    }
+}
+
 val roomVersion = "2.6.1" // Use latest
 kapt {
     correctErrorTypes = true
 }
 
 dependencies {
+
     // Retro fit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
@@ -79,7 +95,7 @@ dependencies {
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // jsoup
-    implementation("org.jsoup:jsoup:1.14.3")
+    implementation("org.jsoup:jsoup:1.16.1")
 
 
     // Media3 for notificatiopn
@@ -97,7 +113,7 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
     implementation("androidx.compose.ui:ui:")
-    implementation ("androidx.compose.material:material") // <- Required for swipeable
+    implementation ("androidx.compose.material:material")
     implementation ("androidx.compose.foundation:foundation")
 
     implementation("androidx.compose.foundation:foundation:1.5.0")
