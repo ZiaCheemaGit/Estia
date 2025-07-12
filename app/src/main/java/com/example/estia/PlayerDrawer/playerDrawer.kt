@@ -86,7 +86,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
+import androidx.navigation.NavController
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
+import com.example.estia.PlaybackController
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.toString
@@ -98,7 +100,8 @@ fun playerDrawer(
     playListViewModel: PlayListScreenViewModel,
     mainAppScreenViewModel: MainAppScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
-    innerPadding: PaddingValues
+    innerPadding: PaddingValues,
+    navController: NavController
 ) {
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
@@ -187,6 +190,23 @@ fun playerDrawer(
                 if (nowPlaying == null) {
 
                 } else {
+                    PlaybackController.onNext = {
+                        val nextSong = playListViewModel.getNextSongFromMainQueue()
+                        if (nextSong != null) {
+                            mainAppScreenViewModel.setNowPlaying(nextSong)
+                            mainAppScreenViewModel.play()
+                        }
+                    }
+
+                    PlaybackController.onPrevious = {
+                        val previousSong = playListViewModel.revertToPreviousSong()
+                        if (previousSong != null) {
+                            mainAppScreenViewModel.setNowPlaying(previousSong)
+                            mainAppScreenViewModel.play()
+                        } else {
+                            mainAppScreenViewModel.setProgress(0)
+                        }
+                    }
                     if (mainAppScreenViewModel.isExpandedNowPlaying){
                         LargeMusicPlayer(
                             expandableDrawerViewModel = expandableDrawerViewModel,
@@ -195,44 +215,15 @@ fun playerDrawer(
                             dominantColor = dominantColor,
                             list = list,
                             playListViewModel = playListViewModel,
-                            playPrevious = {
-                                val previousSong = playListViewModel.revertToPreviousSong()
-                                if (previousSong != null) {
-                                    mainAppScreenViewModel.setNowPlaying(previousSong)
-                                    mainAppScreenViewModel.play()
-                                } else {
-                                    // No previous song — restart current
-                                    mainAppScreenViewModel.setProgress(0)
-                                }
-                            },
-                            playNext = {
-                                val nextSong = playListViewModel.getNextSongFromMainQueue()
-                                if(nextSong != null){
-                                    mainAppScreenViewModel.setNowPlaying(nextSong)
-                                    mainAppScreenViewModel.play()
-                                }
-                            }
+                            playNext = PlaybackController.onNext!!,
+                            playPrevious = PlaybackController.onPrevious!!,
+                            navController = navController
                         )
                     }
                     else{
                         SmallMusicPlayer(
-                            playPrevious = {
-                                val previousSong = playListViewModel.revertToPreviousSong()
-                                if (previousSong != null) {
-                                    mainAppScreenViewModel.setNowPlaying(previousSong)
-                                    mainAppScreenViewModel.play()
-                                } else {
-                                    // No previous song — restart current
-                                    mainAppScreenViewModel.setProgress(0)
-                                }
-                            },
-                            playNext = {
-                                val nextSong = playListViewModel.getNextSongFromMainQueue()
-                                if (nextSong != null) {
-                                    mainAppScreenViewModel.setNowPlaying(nextSong)
-                                    mainAppScreenViewModel.play()
-                                }
-                            },
+                            playNext = PlaybackController.onNext!!,
+                            playPrevious = PlaybackController.onPrevious!!,
                             mainAppScreenViewModel = mainAppScreenViewModel,
                             nowPlaying = nowPlaying,
                             dominantColor = dominantColor,
@@ -412,7 +403,8 @@ fun LargeMusicPlayer(
     mainAppScreenViewModel: MainAppScreenViewModel,
     nowPlaying: MusicFile?,
     dominantColor: Color,
-    list : List<Color>
+    list : List<Color>,
+    navController: NavController
 ) {
 
     var name = nowPlaying?.name ?: ""
@@ -605,8 +597,6 @@ fun LargeMusicPlayer(
                                 color = artistColor,
                             )
                         }
-
-
                     }
                 }
                 Spacer(Modifier.height(10.dp))

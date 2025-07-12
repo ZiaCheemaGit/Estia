@@ -21,6 +21,7 @@ import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 
 class PlayerDrawerViewModel : ViewModel() {
 
@@ -121,18 +122,7 @@ class PlayerDrawerViewModel : ViewModel() {
             // Optionally clear from database too
             db.lyricsDao().deleteLyrics(title, artist)
 
-            // Force fresh fetch
-            val cleanedTitle = title
-                .lowercase()
-                .substringBefore("-")
-                .replace(Regex("\\(.*?\\)|\\[.*?\\]"), "")
-                .replace("radio edit", "", ignoreCase = true)
-                .replace(".", "")
-                .replace(Regex("[^a-z0-9 ]"), "")
-                .replace(Regex("\\s+"), "-")
-                .trim()
-
-            val result = fetchLyricsFromAllSources(artist, cleanedTitle)
+            val result = fetchLyricsFromAllSources(artist, title)
 
             if (!result.isNullOrEmpty() && result != "null") {
                 lyrics = result
@@ -153,23 +143,147 @@ class PlayerDrawerViewModel : ViewModel() {
         val cleanedArtist = artist.trim()
         val cleanedTitle = title.trim()
 
-        // First try lyrics.ovh
+//        // First try lyrics.ovh
         try {
             val ovhLyrics = fetchLyricsFromOvh(cleanedArtist, cleanedTitle)
             if (ovhLyrics != null) return ovhLyrics.toString()
         } catch (_: Exception) {
 
         }
-
+//
         // Then try Genius
 //        try {
-//            val geniusLyrics = fetchLyricsFromGenius(cleanedArtist, cleanedTitle)
+//            val geniusLyrics = getLyricsFromGenius(artist, title)
 //            if (geniusLyrics != null) return geniusLyrics.toString()
 //        } catch (_: Exception) {
 //
 //        }
 
         return null
+    }
+    suspend fun getLyricsFromGenius(
+        artistString: String,
+        title: String,
+        apiKey:String = "dSyCsv6bUVP9cpcKxhrAncBFxqoK6CmrxyrNfqeTuuT5lbZwGoHKlk7wJbYX2Zxg"
+    ): String {
+        return try {
+            if(artistString == "Unknown Artist") { return "No Lyrics Found"}
+
+            val inputArtists = artistString.split(",", "&").map { it.trim().lowercase(Locale.getDefault()) }
+
+            val query = title
+            val searchUrl = "https://api.genius.com/search?q=${query.replace(" ", "%20")}"
+            val searchConnection = withContext(Dispatchers.IO) {
+                val url = URL(searchUrl)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.setRequestProperty("Authorization", "Bearer $apiKey")
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 10_000
+                conn
+            }
+
+            for(artist in inputArtists) {
+
+                val responseCode = searchConnection.responseCode
+
+                if (responseCode != 200) {
+                    return "[ERROR] Genius API error: ${
+                        searchConnection.inputStream.bufferedReader().readText()
+                    }"
+                }
+
+                val json = searchConnection.inputStream.bufferedReader().readText()
+
+                val root = JSONObject(json)
+                val hits = root.getJSONObject("response").getJSONArray("hits")
+                if (hits.length() == 0) {
+                    println("[WARN] No song hits found on Genius.")
+                    return "❌ Could not find song on Genius."
+                }
+
+                var matchedSongUrl: String? = null
+                var r = ""
+
+                for (i in 0 until hits.length()) {
+                    val result = hits.getJSONObject(i).getJSONObject("result")
+                    val geniusArtists = result.getJSONObject("primary_artist").getString("name")
+                        .split(",", "&").map { it.trim().lowercase(Locale.getDefault()) }
+
+                    for (geniusArtist in geniusArtists){
+
+                        val cleanedGeniusArtist = geniusArtist.replace(Regex("\\s*\\(.*?\\)"), "").trim()
+                        val geniusUrl = result.getString("url")
+
+                        if (cleanedGeniusArtist.equals(artist, ignoreCase = true)) {
+                            matchedSongUrl = geniusUrl
+                            break
+                        }
+                        else{
+                            r += cleanedGeniusArtist + ", "
+                        }
+                    }
+                }
+
+                if (matchedSongUrl == null) {
+                    return "returned Artists ${r}"
+                }
+
+
+                val regex = Regex("\"url\":\"(https://genius\\.com[^\"]+)\"")
+                val songUrl = regex.find(json)?.groupValues?.get(1)?.replace("\\/", "/")
+
+                if (songUrl == null) {
+                    return "Could not find SOng"
+                }
+
+
+                // Now fetch and scrape the lyrics from the song page
+                val doc = withContext(Dispatchers.IO) {
+                    Jsoup.connect(songUrl)
+                        .userAgent(
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                                    "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+                        )
+                        .header(
+                            "Accept",
+                            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                        )
+                        .header("Accept-Language", "en-US,en;q=0.5")
+                        .header("Connection", "keep-alive")
+                        .timeout(10_000)
+                        .get()
+                }
+
+                val containers = doc.select("div[class^=Lyrics__Container]")
+
+                if (containers.isEmpty()) return "No lyrics found."
+
+                val rawHtml = containers.joinToString("\n") { it.html() }
+                val rawLyrics = Jsoup.parse(rawHtml).wholeText()
+
+                // Filter out non-lyric lines
+                val cleanedLyrics = rawLyrics
+                    .lines()
+                    .map { it.trim() }
+                    .filter { line ->
+                        line.isNotEmpty() &&
+                                !line.contains("you might also like", true) &&
+                                !line.contains("Embed", true) &&
+                                !line.contains("Translations", true) &&
+                                !line.contains("contributor", true) &&
+                                !line.contains("Lyrics", true) &&
+                                !line.contains("Read More", true)
+                    }
+                    .dropWhile { !it.startsWith("[") && it.length < 30 } // start from first verse marker
+                    .joinToString("\n")
+
+                println("[DEBUG] Final lyrics length: ${cleanedLyrics.length}")
+                return cleanedLyrics.ifBlank { rawLyrics }
+            }
+
+        } catch (e: Exception) {
+            "[ERROR] Exception: ${e.message}"
+        }.toString()
     }
     suspend fun fetchLyricsFromOvh(artist: String, title: String): String? = withContext(Dispatchers.IO) {
         val artistList = artist.split(",").map { it.trim() }
@@ -236,7 +350,10 @@ class PlayerDrawerViewModel : ViewModel() {
             try {
                 val doc = withContext(Dispatchers.IO) {
                     Jsoup.connect(url)
-                        .userAgent("Mozilla/5.0")
+                        .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                        .header("Accept-Language", "en-US,en;q=0.5")
+                        .header("Connection", "keep-alive")
                         .followRedirects(true)
                         .timeout(10_000)
                         .get()
@@ -267,6 +384,7 @@ class PlayerDrawerViewModel : ViewModel() {
                     .joinToString("\n")
             } catch (e: Exception) {
                 // Try next artist variant
+                Log.d("LyricsFetcher", "Error fetching lyrics from Genius: ${e.message}")
             }
         }
 

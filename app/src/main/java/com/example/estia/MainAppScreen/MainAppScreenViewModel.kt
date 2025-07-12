@@ -76,6 +76,7 @@ class MainAppScreenViewModel : ViewModel(){
     private var loading = false
 
     val isLoadingSongURL = mutableStateOf(false)
+
     private val _dominantColor = MutableStateFlow(Color.Gray)
     val dominantColor: StateFlow<Color> = _dominantColor
 
@@ -381,8 +382,7 @@ class MainAppScreenViewModel : ViewModel(){
         // Launch new job and await its completion
         fetchAudioJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-                val fullQuery = "$songName $artist"
-                val result = pyModule.callAttr("get_song_audio_url", fullQuery)
+                val result = pyModule.callAttr("get_song_audio_url", songName, artist)
 
                 val url = result.callAttr("get", "url")?.toString()
                 val error = result.callAttr("get", "error")?.toString()

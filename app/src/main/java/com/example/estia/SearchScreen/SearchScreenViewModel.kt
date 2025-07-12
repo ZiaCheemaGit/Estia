@@ -37,30 +37,31 @@ class SearchScreenViewModel : ViewModel() {
 
     private var searchJob: Job? = null
 
-    var searchResults = mutableStateOf<List<DeezerTrack>>(emptyList())
-        private set
+    val songSearchResults = mutableStateOf<List<DeezerTrack>>(emptyList())
+    val albumSearchResults = mutableStateOf<List<DeezerAlbum>>(emptyList())
+    val artistSearchResults = mutableStateOf<List<DeezerArtist>>(emptyList())
 
     var isLoading = mutableStateOf(false)
         private set
 
     fun fillSearchResultsBySongs(query: String) {
         if (query.isBlank()) {
-            searchResults.value = emptyList()
+            songSearchResults.value = emptyList()
             return
         }
 
         searchJob?.cancel()
 
         searchJob = viewModelScope.launch {
-            searchResults.value = emptyList()
+            songSearchResults.value = emptyList()
             try {
                 isLoading.value = true
                 val searchResponse = DeezerService.api.searchTracks(query)
-                searchResults.value = searchResponse.data
+                songSearchResults.value = searchResponse.data
 
             } catch (e: Exception) {
                 if (e !is CancellationException) {
-                    searchResults.value = emptyList()
+                    songSearchResults.value = emptyList()
                 }
             } finally {
                 isLoading.value = false
@@ -68,7 +69,67 @@ class SearchScreenViewModel : ViewModel() {
         }
     }
 
+    fun fillSearchResultsByAlbums(query: String){
+        if (query.isBlank()) {
+            albumSearchResults.value = emptyList()
+            return
+        }
 
+        searchJob?.cancel()
+
+        searchJob = viewModelScope.launch {
+            albumSearchResults.value = emptyList()
+            try {
+                isLoading.value = true
+                val searchResponse = DeezerService.api.searchAlbums(query)
+                albumSearchResults.value = searchResponse.data
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    albumSearchResults.value = emptyList()
+                }
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
+    fun fillSearchResultsByArtists(query: String){
+        if (query.isBlank()) {
+            artistSearchResults.value = emptyList()
+            return
+        }
+
+        searchJob?.cancel()
+
+        searchJob = viewModelScope.launch {
+            artistSearchResults.value = emptyList()
+            try {
+                isLoading.value = true
+                val searchResponse = DeezerService.api.searchArtists(query)
+                artistSearchResults.value = searchResponse.data
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    artistSearchResults.value = emptyList()
+                }
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
+    suspend fun getOtherArtists(id: Long): String = withContext(Dispatchers.IO) {
+        val artists = DeezerService.api.getTrackDetails(id).contributors
+        artists.joinToString(separator = ", ") { it.name }
+    }
+
+
+    fun applyFilter(){
+        when(selectedFilter.value){
+            filterOptionsList[0] -> fillSearchResultsBySongs(searchQuery.value)
+            filterOptionsList[1] -> fillSearchResultsByAlbums(searchQuery.value)
+            filterOptionsList[2] -> fillSearchResultsByArtists(searchQuery.value)
+        }
+    }
 
     suspend fun getCachedSongPath(
         context: Context,

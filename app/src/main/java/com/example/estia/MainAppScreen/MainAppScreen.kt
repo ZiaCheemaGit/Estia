@@ -1,5 +1,6 @@
 package com.example.estia.MainAppScreen
 
+import RenderAccountScreen
 import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Build
@@ -36,6 +37,7 @@ import androidx.compose.material.IconButton
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
+import com.example.estia.AccountScreen.AccountScreenViewModel
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.FileExplorerScreen.RenderFileExplorerScreen
 import com.example.estia.MusicFile
@@ -47,19 +49,22 @@ import com.example.estia.PlayListScreen.RenderPlayListScreen
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.SearchScreen.RenderSearchScreen
 import com.example.estia.SearchScreen.SearchScreenViewModel
+import com.example.estia.SetSystemBarsColor
 import kotlinx.coroutines.launch
 import kotlin.math.exp
 
 @Composable
 fun MainAppScreen(
+    mainAppScreenViewModel: MainAppScreenViewModel,
     navController: NavController,
-    fileExplorerViewModel: FileExplorerViewModel) {
+    fileExplorerViewModel: FileExplorerViewModel,
+) {
 
     val expandableDrawerViewModel = viewModel<PlayerDrawerViewModel>()
         
     RequestMediaPlaybackPermission()
 
-    val mainAppScreenViewModel : MainAppScreenViewModel = viewModel()
+    val accountScreenViewModel: AccountScreenViewModel = viewModel()
     val playListScreenViewModel : PlayListScreenViewModel = viewModel()
     val searchScreenViewModel : SearchScreenViewModel = viewModel()
     val playerDrawerViewModel : PlayerDrawerViewModel = viewModel()
@@ -77,7 +82,7 @@ fun MainAppScreen(
             .fillMaxSize(),
         containerColor = Color.Black,
         topBar = {
-            TransparentTopAppBar(mainAppScreenViewModel){
+            TransparentTopAppBar(fileExplorerViewModel, mainAppScreenViewModel){
                     screen ->
                 mainAppScreenViewModel.changeScreen(screen)
             }
@@ -109,7 +114,11 @@ fun MainAppScreen(
                             expandableDrawerViewModel = expandableDrawerViewModel
                         )
 
-                    "AccountScreen" -> RenderAccountScreen(mainAppScreenViewModel)
+                    "AccountScreen" -> RenderAccountScreen(
+                        innerPadding,
+                        mainAppScreenViewModel,
+                        accountScreenViewModel
+                    )
 
                     "SettingsScreen" -> RenderSettingsScreen(mainAppScreenViewModel)
 
@@ -127,7 +136,8 @@ fun MainAppScreen(
                         playListScreenViewModel,
                         mainAppScreenViewModel,
                         innerPadding = innerPadding,
-                        expandableDrawerViewModel = playerDrawerViewModel
+                        expandableDrawerViewModel = playerDrawerViewModel,
+                        navController = navController
                     )
                 }
 
@@ -161,21 +171,6 @@ fun RenderSettingsScreen(mainAppScreenViewModel : MainAppScreenViewModel){
 }
 
 @Composable
-fun RenderAccountScreen(mainAppScreenViewModel : MainAppScreenViewModel) {
-    LazyColumn(
-    ) {
-        items(100) { index ->
-            Text(
-                text = "Account Screen Account Screen Account Screen  Account Screen" +
-                        "Account Screen Account Screen Account Screen",
-                modifier = Modifier.padding(16.dp),
-                color = Color.White
-            )
-        }
-    }
-}
-
-@Composable
 fun RenderExploreScreen(mainAppScreenViewModel : MainAppScreenViewModel){
     LazyColumn(
     ) {
@@ -192,7 +187,11 @@ fun RenderExploreScreen(mainAppScreenViewModel : MainAppScreenViewModel){
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransparentTopAppBar(mainAppScreenViewModel: MainAppScreenViewModel, screenToShow : (String) -> Unit) {
+fun TransparentTopAppBar(
+    fileExplorerViewModel: FileExplorerViewModel,
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    screenToShow : (String) -> Unit
+) {
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Black.copy(alpha = 0.7f), // Semi-transparent
@@ -215,7 +214,27 @@ fun TransparentTopAppBar(mainAppScreenViewModel: MainAppScreenViewModel, screenT
                     color = Color.White,
                     fontSize = MaterialTheme.typography.titleLarge.fontSize,
                 )
-                Spacer(modifier = Modifier.width(130.dp))
+
+                if(mainAppScreenViewModel.currentScreen == "FileExplorerScreen"){
+                    Spacer(modifier = Modifier.width(67.dp))
+                    IconButton(
+                        onClick = {
+                            fileExplorerViewModel.showSearchBar.value = true
+                        }
+                    ) {
+
+                        Image(
+                            painter = painterResource(id = R.drawable.search_icon_unselected),
+                            contentDescription = "search in file explorer",
+                            modifier = Modifier.size(24.dp),
+                            colorFilter = ColorFilter.tint(Color.White)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(15.dp))
+                }
+                else{
+                    Spacer(modifier = Modifier.width(130.dp))
+                }
                 mainAppScreenViewModel.unselectedTopBarIcons.forEach {
                     icon ->
                     IconButton(
@@ -230,7 +249,7 @@ fun TransparentTopAppBar(mainAppScreenViewModel: MainAppScreenViewModel, screenT
                         }
                         Image(
                             painter = painterResource(id = iconId),
-                            contentDescription = "Home",
+                            contentDescription = icon.key,
                             modifier = Modifier.size(24.dp),
                             colorFilter = ColorFilter.tint(Color.White)
                         )
@@ -287,36 +306,6 @@ fun TransparentBottomBar(mainAppScreenViewModel: MainAppScreenViewModel, screenT
         }
     )
 }
-
-
-@Composable
-fun bt(mainAppScreenViewModel: MainAppScreenViewModel){
-    Card(
-        modifier = Modifier
-            .height(60.dp)
-            .fillMaxWidth()
-            .padding(top = 300.dp),
-        colors = CardDefaults.cardColors(Color.Blue)
-    ){
-        val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
-        if(nowPlaying?.coverArtUri == null){
-            Image(
-                painter = painterResource(id = R.drawable.music_logo),
-                contentDescription = "Simple Music Icon",
-                modifier = Modifier.size(55.dp),
-            )
-        }
-        else{
-            AsyncImage(
-                model = nowPlaying?.coverArtUri,
-                contentDescription = "Simple Music Icon",
-                modifier = Modifier.size(55.dp),
-            )
-        }
-
-    }
-}
-
 
 @Composable
 fun RequestMediaPlaybackPermission() {

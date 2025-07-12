@@ -77,9 +77,8 @@ fun RenderSearchScreen(
     val selectedfilter = viewModel.selectedFilter
     var searchQuery = viewModel.searchQuery.value
 
-    LaunchedEffect(searchQuery) {
-        if(selectedfilter.value == viewModel.filterOptionsList[0])
-        viewModel.fillSearchResultsBySongs(searchQuery)
+    LaunchedEffect(viewModel.searchQuery.value, viewModel.selectedFilter) {
+        viewModel.applyFilter()
     }
 
     Box(
@@ -87,16 +86,13 @@ fun RenderSearchScreen(
         Box{
             LazyColumn (Modifier.padding(start = 10.dp, end = 10.dp)
             ){
-                val trackSearchResults = viewModel.searchResults.value
-
+                // Top Space
                 item{
                     Spacer(Modifier.height(innerPadding.calculateTopPadding() + 60.dp))
                 }
 
-
-
                 // Filter Options
-                if(trackSearchResults.isNotEmpty()) {
+                if(!viewModel.isLoading.value) {
                     item {
                         LazyRow(
                             modifier = Modifier
@@ -114,7 +110,8 @@ fun RenderSearchScreen(
                                 Card(
                                     modifier = Modifier
                                         .clickable(onClick = {
-
+                                            viewModel.selectedFilter.value = text
+                                            viewModel.applyFilter()
                                         })
                                         .padding(bottom = 10.dp)
                                         .height(35.dp),
@@ -137,26 +134,51 @@ fun RenderSearchScreen(
                         }
                     }
                 }
-                else if(searchQuery == ""){
-
-                }
+                else if(searchQuery == ""){}
                 else{
                     item{
                         CircularProgressIndicator()
                     }
                 }
 
-                items(viewModel.searchResults.value.size) { index ->
-                    SongItemComposable(
-                        mainAppScreenViewModel,
-                        viewModel,
-                        musicFile = trackSearchResults[index]
-                    )
+                // Song Results
+                if(viewModel.selectedFilter.value == viewModel.filterOptionsList[0]){
+                    items(viewModel.songSearchResults.value.size) { index ->
+                        SongItemComposable(
+                            mainAppScreenViewModel,
+                            viewModel,
+                            musicFile = viewModel.songSearchResults.value[index]
+                        )
+                    }
                 }
 
+                // Album Results
+                else if(viewModel.selectedFilter.value == viewModel.filterOptionsList[1]){
+                    items(viewModel.albumSearchResults.value.size) { index ->
+                        AlbumItemComposable(
+                            mainAppScreenViewModel,
+                            viewModel,
+                            album = viewModel.albumSearchResults.value[index]
+                        )
+                    }
+                }
+
+                // Artist Results
+                else if(viewModel.selectedFilter.value == viewModel.filterOptionsList[2]){
+                    items(viewModel.artistSearchResults.value.size) { index ->
+                        ArtistItemComposable(
+                            mainAppScreenViewModel,
+                            viewModel,
+                            artist = viewModel.artistSearchResults.value[index]
+                        )
+                    }
+                }
+
+                // Bottom Space
                 item{
                     Spacer(Modifier.height(innerPadding.calculateTopPadding() + 75.dp))
                 }
+
             }
         }
         Box(
@@ -236,7 +258,6 @@ fun SongItemComposable(
     musicFile: DeezerTrack,
 ) {
     val scope = rememberCoroutineScope()
-    val thisContext = LocalContext.current
     var name = musicFile.title
     var artist : String = musicFile.artist.name
     val coverArt = musicFile.album.cover_medium
@@ -265,7 +286,7 @@ fun SongItemComposable(
 
                             val localMusic = MusicFile(
                                 name = musicFile.title,
-                                artist = artist,
+                                artist = searchScreenViewModel.getOtherArtists(musicFile.id),
                                 album = musicFile.album.title,
                                 duration = musicFile.duration.toLong() * 1000,
                                 filePath = null,
@@ -317,6 +338,158 @@ fun SongItemComposable(
                             text = artist,
                             color = Color.Gray
                         )
+                    }
+                    Spacer(Modifier.width(20.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AlbumItemComposable(
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    searchScreenViewModel: SearchScreenViewModel,
+    album: DeezerAlbum,
+) {
+    val scope = rememberCoroutineScope()
+    var name = album.title
+    var artist : String = album.artist.name
+    val coverArt = album.cover_medium
+    if (name.length > 45) name = name.take(45)
+    if (artist.length > 45) artist = artist.take(45) + "..."
+
+    Box(
+        modifier = Modifier
+            .background(Color.Black)
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(65.dp)
+                .background(Color.Black),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+                    .height(65.dp)
+                    .clickable(onClick = {
+
+                    })
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier
+                            .height(50.dp)
+                            .width(50.dp)
+                    ) {
+                        val placeholderPainter = painterResource(id = R.drawable.music_icon_compressed)
+
+                        AsyncImage(
+                            model = coverArt,
+                            contentDescription = "Cover Art",
+                            modifier = Modifier.fillMaxSize(),
+                            placeholder = placeholderPainter,
+                            error = placeholderPainter,
+                            fallback = placeholderPainter,
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Column(
+                        modifier = Modifier.width(250.dp)
+                    ) {
+                        Text(
+                            maxLines = 1,
+                            fontSize = 14.sp,
+                            fontFamily = SpotifyBold,
+                            text = name,
+                            color = Color.White,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            maxLines = 1,
+                            fontSize = 12.sp,
+                            fontFamily = SpotifyBold,
+                            text = artist,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.width(20.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ArtistItemComposable(
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    searchScreenViewModel: SearchScreenViewModel,
+    artist: DeezerArtist,
+) {
+    var name = artist.name
+    val coverArt = artist.picture
+    if (name.length > 45) name = name.take(45)
+
+    Box(
+        modifier = Modifier
+            .background(Color.Black)
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(65.dp)
+                .background(Color.Black),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+                    .height(65.dp)
+                    .clickable(onClick = {
+
+                    })
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier
+                            .height(50.dp)
+                            .width(50.dp)
+                    ) {
+                        val placeholderPainter = painterResource(id = R.drawable.music_icon_compressed)
+
+                        AsyncImage(
+                            model = coverArt,
+                            contentDescription = "Cover Art",
+                            modifier = Modifier.fillMaxSize(),
+                            placeholder = placeholderPainter,
+                            error = placeholderPainter,
+                            fallback = placeholderPainter,
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Column(
+                        modifier = Modifier.width(250.dp)
+                    ) {
+                        Text(
+                            maxLines = 1,
+                            fontSize = 14.sp,
+                            fontFamily = SpotifyBold,
+                            text = name,
+                            color = Color.White,
+                        )
+                        Spacer(Modifier.height(2.dp))
                     }
                     Spacer(Modifier.width(20.dp))
                 }
