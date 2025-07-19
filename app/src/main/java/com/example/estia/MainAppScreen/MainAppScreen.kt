@@ -37,6 +37,8 @@ import androidx.compose.material.IconButton
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 import com.example.estia.AccountScreen.AccountScreenViewModel
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.FileExplorerScreen.RenderFileExplorerScreen
@@ -59,7 +61,6 @@ fun MainAppScreen(
     navController: NavController,
     fileExplorerViewModel: FileExplorerViewModel,
 ) {
-
     val expandableDrawerViewModel = viewModel<PlayerDrawerViewModel>()
         
     RequestMediaPlaybackPermission()
@@ -102,7 +103,8 @@ fun MainAppScreen(
                     "SearchScreen" -> RenderSearchScreen(
                         innerPadding,
                         searchScreenViewModel,
-                        mainAppScreenViewModel = mainAppScreenViewModel
+                        mainAppScreenViewModel = mainAppScreenViewModel,
+                        playListScreenViewModel
                     )
 
                     "FileExplorerScreen" ->
@@ -149,6 +151,10 @@ fun MainAppScreen(
 
                 LaunchedEffect(nowPlaying) {
                     playListScreenViewModel.setNowPlaying(nowPlaying)
+                }
+
+                LaunchedEffect(mainAppScreenViewModel.currentScreen) {
+                    fileExplorerViewModel.showSearchBar.value = false
                 }
             }
         }

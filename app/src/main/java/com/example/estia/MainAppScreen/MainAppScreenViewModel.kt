@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.core.app.NotificationCompat
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
+import com.example.estia.AudioFetcher
 import com.example.estia.MainActivity
 import com.example.estia.MusicPlaybackService
 import com.example.estia.MusicServiceController
@@ -47,31 +48,30 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.downloader.Downloader
+import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.exceptions.ExtractionException
+import org.schabi.newpipe.extractor.stream.StreamInfo
+import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import java.net.URLEncoder
 import java.util.regex.Pattern
+import java.util.zip.GZIPInputStream
 import kotlin.coroutines.cancellation.CancellationException
 
 class MainAppScreenViewModel : ViewModel(){
-    private lateinit var _pyModule: PyObject
-    val pyModule: PyObject
-        get() = _pyModule
-    init {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val py = Python.getInstance()
-                _pyModule = py.getModule("ytdlp_wrapper")
-                Log.d("PythonInit", "Python module preloaded")
-            } catch (e: Exception) {
-                Log.e("PythonInit", "Error loading Python module", e)
-            }
-        }
-    }
+
     //
     // Now Playing Logic
     //
-    private var fetchAudioJob: Job? = null
+    private val audioFetcher = AudioFetcher()
 
     private var loading = false
 
@@ -173,7 +173,7 @@ class MainAppScreenViewModel : ViewModel(){
                         _nowPlaying.value = nowPlaying.value?.copy(source = "Search")
 
                         // Fetch audio stream URL
-                        val url = fetchAudioStreamUrl(
+                        val url = audioFetcher.fetchAudioStreamUrl(
                             nowPlaying.value?.artist.orEmpty(),
                             nowPlaying.value?.name.orEmpty()
                         )
@@ -182,10 +182,9 @@ class MainAppScreenViewModel : ViewModel(){
                         if(!loading){
                             play()
                         }
-
+                        val duration = getMetadataDuration(url.toString())
                         isLoadingSongURL.value = false
                         // Set duration
-                        val duration = getMetadataDuration(url.toString())
                         _nowPlaying.value = nowPlaying.value?.copy(duration = duration)
 
                     }
@@ -364,49 +363,6 @@ class MainAppScreenViewModel : ViewModel(){
             String.format("%d:%02d", minutes, seconds)
     }
 
-    //
-    // Youtube
-    //
-
-    // yt dlp python
-    suspend fun fetchAudioStreamUrl(
-        artist: String,
-        songName: String
-    ): String? {
-        // Cancel the previous job if it exists
-        fetchAudioJob?.cancelAndJoin()
-
-        // Declare a result variable to hold the return value
-        var resultUrl: String? = null
-
-        // Launch new job and await its completion
-        fetchAudioJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val result = pyModule.callAttr("get_song_audio_url", songName, artist)
-
-                val url = result.callAttr("get", "url")?.toString()
-                val error = result.callAttr("get", "error")?.toString()
-
-                if (error != null) {
-                    Log.e("AudioFetcher", "Error from Python: $error")
-                    resultUrl = null
-                } else {
-                    Log.d("AudioFetcher", "Fetched audio URL: $url")
-                    resultUrl = url
-                }
-            } catch (e: CancellationException) {
-                Log.d("AudioFetcher", "Job cancelled")
-            } catch (e: Exception) {
-                Log.e("AudioFetcher", "Exception during fetch", e)
-                resultUrl = null
-            }
-        }
-
-        // Wait for job to finish and return the result
-        fetchAudioJob?.join()
-        return resultUrl
-    }
-
     private var downloadImageJob: Deferred<String?>? = null
 
     suspend fun downloadAndCacheSingleImage(context: Context, url: String): String? {
@@ -465,5 +421,3 @@ class MainAppScreenViewModel : ViewModel(){
         return downloadImageJob?.await()
     }
 }
-
-

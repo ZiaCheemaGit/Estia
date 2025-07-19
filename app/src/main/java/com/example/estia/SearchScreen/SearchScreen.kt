@@ -60,20 +60,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import com.example.estia.AudioFetcher
 
 @Composable
 fun RenderSearchScreen(
     innerPadding: PaddingValues,
     viewModel: SearchScreenViewModel,
-    mainAppScreenViewModel : MainAppScreenViewModel
+    mainAppScreenViewModel : MainAppScreenViewModel,
+    playListScreenViewModel: PlayListScreenViewModel
 ) {
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(context))
-        }
-    }
-
     val selectedfilter = viewModel.selectedFilter
     var searchQuery = viewModel.searchQuery.value
 
@@ -147,7 +142,8 @@ fun RenderSearchScreen(
                         SongItemComposable(
                             mainAppScreenViewModel,
                             viewModel,
-                            musicFile = viewModel.songSearchResults.value[index]
+                            musicFile = viewModel.songSearchResults.value[index],
+                            playListScreenViewModel
                         )
                     }
                 }
@@ -256,6 +252,7 @@ fun SongItemComposable(
     mainAppScreenViewModel: MainAppScreenViewModel,
     searchScreenViewModel: SearchScreenViewModel,
     musicFile: DeezerTrack,
+    playListScreenViewModel: PlayListScreenViewModel
 ) {
     val scope = rememberCoroutineScope()
     var name = musicFile.title
@@ -264,16 +261,79 @@ fun SongItemComposable(
     if (name.length > 45) name = name.take(45)
     if (artist.length > 45) artist = artist.take(45) + "..."
 
+    val swipeOffset = remember { Animatable(0f) }
+    val maxOffset = 250f // Max swipe distance to reveal hidden UI
+    val dragThreshold = 100f
+
+    val gestureModifier = Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onHorizontalDrag = { _, dragAmount ->
+                val newOffset =
+                    (swipeOffset.value + dragAmount).coerceIn(0f, maxOffset)
+                scope.launch { swipeOffset.snapTo(newOffset) }
+            },
+            onDragEnd = {
+                scope.launch {
+                    if (swipeOffset.value >= dragThreshold) {
+                        swipeOffset.animateTo(maxOffset)
+                        // add song to playList
+                        val localMusic = MusicFile(
+                            name = musicFile.title,
+                            artist = searchScreenViewModel.getAllArtists(musicFile.id),
+                            album = musicFile.album.title,
+                            duration = musicFile.duration.toLong() * 1000,
+                            filePath = null,
+                            coverArtUri = musicFile.album.cover_xl,
+                            source = "....",
+                            id = musicFile.id
+                        )
+
+                        playListScreenViewModel.enqueueInPlayQueue(localMusic)
+
+                        swipeOffset.animateTo(0f) // snap back
+                    } else {
+                        swipeOffset.animateTo(0f) // also snap back if not enough
+                    }
+                }
+            },
+            onDragCancel = {
+                scope.launch {
+                    swipeOffset.animateTo(0f) // also snap back on cancel
+                }
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .background(Color.Black)
             .fillMaxWidth()
     ) {
+        // Hidden Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(65.dp)
-                .background(Color.Black),
+                .background(Color.Green),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Add To Queue",
+                color = Color.White,
+                modifier = Modifier.padding(5.dp),
+                fontFamily = SpotifyBold,
+                fontSize = 15.sp
+            )
+        }
+
+        // Visible Row
+        Row(
+            modifier = Modifier
+                .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
+                .fillMaxWidth()
+                .height(65.dp)
+                .background(Color.Black)
+                .then(gestureModifier),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -286,7 +346,7 @@ fun SongItemComposable(
 
                             val localMusic = MusicFile(
                                 name = musicFile.title,
-                                artist = searchScreenViewModel.getOtherArtists(musicFile.id),
+                                artist = searchScreenViewModel.getAllArtists(musicFile.id),
                                 album = musicFile.album.title,
                                 duration = musicFile.duration.toLong() * 1000,
                                 filePath = null,

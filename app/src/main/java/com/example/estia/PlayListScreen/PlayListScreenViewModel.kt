@@ -1,11 +1,14 @@
 package com.example.estia.PlayListScreen
 
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.estia.AudioFetcher
 import com.example.estia.MusicFile
+import kotlinx.coroutines.launch
 
 class PlayListScreenViewModel : ViewModel() {
+    private val audioFetcher = AudioFetcher()
 
     private val playQueue = mutableStateOf(listOf<MusicFile>())
     private val localStorageQueue = mutableStateOf(listOf<MusicFile>())
@@ -31,6 +34,17 @@ class PlayListScreenViewModel : ViewModel() {
     }
 
     fun enqueueInPlayQueue(musicFile: MusicFile) {
+        // From search but url has to load
+        if(musicFile.source == "...."){
+            viewModelScope.launch{
+                val url = audioFetcher.fetchAudioStreamUrl(
+                    musicFile.artist.orEmpty(),
+                    musicFile.name
+                )
+                musicFile.filePath = url
+                musicFile.source = "Search"
+            }
+        }
         val currentList = playQueue.value.toMutableList()
         currentList.add(musicFile)
         playQueue.value = currentList
@@ -57,6 +71,29 @@ class PlayListScreenViewModel : ViewModel() {
         }
     }
 
+    // clear
+    fun clearPlayQueue() {
+        playQueue.value = emptyList()
+        visiblePlayQueue.value = emptyList()
+    }
+
+    fun clearLocalStorageQueue() {
+        localStorageQueue.value = emptyList()
+        visibleLocalStorageQueue.value = emptyList()
+    }
+
+    // update
+    fun updateVisibleLocalStorageQueue() {
+        val newSubList = localStorageQueue.value.subList(localStorageQueueIndex, localStorageQueue.value.size)
+        visibleLocalStorageQueue.value = newSubList
+    }
+
+    fun updateVisiblePlayQueue(){
+        val newSubList = playQueue.value.subList(playQueueIndex, playQueue.value.size)
+        visiblePlayQueue.value = newSubList
+    }
+
+    // revert
     fun revertToPreviousSong(): MusicFile? {
         if (playQueueIndex > 0) {
             playQueueIndex--
@@ -72,24 +109,5 @@ class PlayListScreenViewModel : ViewModel() {
             return null
         }
     }
-
-    fun clearPlayQueue() {
-        playQueue.value = emptyList()
-        visiblePlayQueue.value = emptyList()
-    }
-
-    fun clearLocalStorageQueue() {
-        localStorageQueue.value = emptyList()
-        visibleLocalStorageQueue.value = emptyList()
-    }
-
-    fun updateVisibleLocalStorageQueue() {
-        val newSubList = localStorageQueue.value.subList(localStorageQueueIndex, localStorageQueue.value.size)
-        visibleLocalStorageQueue.value = newSubList
-    }
-
-    fun updateVisiblePlayQueue(){
-        val newSubList = playQueue.value.subList(playQueueIndex, playQueue.value.size)
-        visiblePlayQueue.value = newSubList
-    }
 }
+

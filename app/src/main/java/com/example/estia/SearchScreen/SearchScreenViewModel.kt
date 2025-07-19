@@ -117,11 +117,12 @@ class SearchScreenViewModel : ViewModel() {
         }
     }
 
-    suspend fun getOtherArtists(id: Long): String = withContext(Dispatchers.IO) {
+    suspend fun getAllArtists(id: Long): String = withContext(Dispatchers.IO) {
         val artists = DeezerService.api.getTrackDetails(id).contributors
-        artists.joinToString(separator = ", ") { it.name }
+        artists
+            .distinctBy { it.name } // remove duplicates case-insensitively
+            .joinToString(separator = ", ") { it.name }
     }
-
 
     fun applyFilter(){
         when(selectedFilter.value){
