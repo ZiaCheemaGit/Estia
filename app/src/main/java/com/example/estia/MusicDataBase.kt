@@ -14,16 +14,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.Upsert
+import com.example.estia.SearchScreen.DeezerTrack
 import kotlinx.coroutines.flow.Flow
 
 @Database(
-    entities = [MusicFile::class, PlayBackMusicFile::class, LyricsEntry::class],
-    version = 1
+    entities = [MusicFile::class, PlayBackMusicFile::class, LyricsEntry::class, SearchHistoryEntry::class],
+    version = 2
 )
 abstract class MusicDataBase : RoomDatabase() {
     abstract fun musicDao(): MusicFileDao
     abstract fun lyricsDao(): LyricsDao
     abstract fun playBackMusicFileDao(): PlayBackMusicFileDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
 
     companion object {
         @Volatile
@@ -43,8 +45,7 @@ abstract class MusicDataBase : RoomDatabase() {
     }
 }
 
-
-@Entity
+@Entity(tableName = "musicfile")
 data class MusicFile(
     val name : String,
     @PrimaryKey(autoGenerate = false)
@@ -58,7 +59,7 @@ data class MusicFile(
 )
 
 
-@Entity()
+@Entity
 data class PlayBackMusicFile(
     @PrimaryKey
     val rowId: Int = 0,
@@ -83,6 +84,21 @@ data class LyricsEntry(
     val songName: String,
     val artistName: String,
     val lyrics: String
+)
+
+
+@Entity(tableName = "search_history")
+data class SearchHistoryEntry(
+    @PrimaryKey(autoGenerate = false)
+    val id : Long,
+    val name : String,
+    val artist : String? = null,
+    val album : String? = null,
+    var duration: Long? = null,
+    var filePath : String? = null,
+    var coverArtUri : String? = null,
+    var source : String? = null,
+    val timeStamp: Long = System.currentTimeMillis()
 )
 
 
@@ -131,6 +147,24 @@ interface PlayBackMusicFileDao {
 
     @Query("DELETE FROM playbackmusicfile")
     suspend fun deleteAll()
+}
+
+@Dao
+interface SearchHistoryDao {
+    @Upsert
+    suspend fun upsertSong(entry: SearchHistoryEntry)
+
+    @Upsert
+    suspend fun upsertAll(entries: List<SearchHistoryEntry>)
+
+    @Query("SELECT * FROM search_history ORDER BY timeStamp DESC")
+    fun getHistory(): Flow<List<SearchHistoryEntry>>
+
+    @Query("DELETE FROM search_history WHERE id = :id")
+    suspend fun deleteFromHistory(id: Long)
+
+    @Query("DELETE FROM search_history")
+    suspend fun clearHistory()
 }
 
 

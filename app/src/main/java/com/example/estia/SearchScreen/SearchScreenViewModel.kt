@@ -10,6 +10,9 @@ import androidx.lifecycle.viewModelScope
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import com.example.estia.MusicDataBase
+import com.example.estia.MusicFile
+import com.example.estia.SearchHistoryEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -29,17 +33,76 @@ import java.util.Locale
 
 class SearchScreenViewModel : ViewModel() {
 
+    private lateinit var db: MusicDataBase
+
+    fun initializeDataBAse(context: Context){
+        db = MusicDataBase.Companion.getInstance(context)
+    }
+
     private var country : String = ""
 
     val filterOptionsList = listOf("Songs", "Albums", "Artists")
     val selectedFilter = mutableStateOf(filterOptionsList[0])
     val searchQuery = mutableStateOf("")
 
+    var history = mutableStateOf(emptyList<SearchHistoryEntry>())
+        private set
+    private val maxHistorySize = 20
+
+    fun addToHistory(musicFile: MusicFile) {
+        val entry = SearchHistoryEntry(
+            id = musicFile.id,
+            name = musicFile.name,
+            artist = musicFile.artist,
+            album = musicFile.album,
+            duration = musicFile.duration,
+            filePath = musicFile.filePath,
+            coverArtUri = musicFile.coverArtUri,
+            source = musicFile.source,
+            timeStamp = System.currentTimeMillis()
+        )
+
+        // Remove any old instance with same ID
+        val updated = listOf(entry) + history.value.filterNot { it.id == entry.id }
+
+        // Limit to last MAX_HISTORY_SIZE entries
+        history.value = updated.take(maxHistorySize)
+
+        saveSearchHistoryToDB()
+    }
+
+    fun saveSearchHistoryToDB(){
+        viewModelScope.launch(Dispatchers.IO) {
+            db.searchHistoryDao().clearHistory()
+            db.searchHistoryDao().upsertAll(history.value)
+        }
+    }
+
+    fun loadSearchHistoryFromDB() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val initial = db.searchHistoryDao().getHistory().firstOrNull()
+            if (initial != null) {
+                history.value = initial
+            }
+        }
+    }
+
+    fun removeFromHistory(musicFile: MusicFile) {
+        history.value = history.value.filterNot { it.id == musicFile.id }
+        saveSearchHistoryToDB()
+    }
+
     private var searchJob: Job? = null
 
     val songSearchResults = mutableStateOf<List<DeezerTrack>>(emptyList())
     val albumSearchResults = mutableStateOf<List<DeezerAlbum>>(emptyList())
     val artistSearchResults = mutableStateOf<List<DeezerArtist>>(emptyList())
+
+    fun clearSearchResults(){
+        songSearchResults.value = emptyList()
+        albumSearchResults.value = emptyList()
+        artistSearchResults.value = emptyList()
+    }
 
     var isLoading = mutableStateOf(false)
         private set

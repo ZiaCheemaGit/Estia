@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,7 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -61,6 +64,7 @@ import kotlin.math.roundToInt
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.example.estia.AudioFetcher
+import com.example.estia.SearchHistoryEntry
 
 @Composable
 fun RenderSearchScreen(
@@ -69,6 +73,7 @@ fun RenderSearchScreen(
     mainAppScreenViewModel : MainAppScreenViewModel,
     playListScreenViewModel: PlayListScreenViewModel
 ) {
+    viewModel.loadSearchHistoryFromDB()
     val selectedfilter = viewModel.selectedFilter
     var searchQuery = viewModel.searchQuery.value
 
@@ -76,131 +81,50 @@ fun RenderSearchScreen(
         viewModel.applyFilter()
     }
 
-    Box(
-    ){
-        Box{
-            LazyColumn (Modifier.padding(start = 10.dp, end = 10.dp)
-            ){
-                // Top Space
-                item{
-                    Spacer(Modifier.height(innerPadding.calculateTopPadding() + 60.dp))
-                }
-
-                // Filter Options
-                if(!viewModel.isLoading.value) {
-                    item {
-                        LazyRow(
-                            modifier = Modifier
-                                .padding(top = 10.dp)
-                                .fillMaxWidth()
-                        ) {
-                            items(viewModel.filterOptionsList.size) { index ->
-
-                                var text = viewModel.filterOptionsList[index]
-                                var cardColor = Color.Gray
-
-                                if (selectedfilter.value == text) {
-                                    cardColor = Color(0xFFD8BFD8)
-                                }
-                                Card(
-                                    modifier = Modifier
-                                        .clickable(onClick = {
-                                            viewModel.selectedFilter.value = text
-                                            viewModel.applyFilter()
-                                        })
-                                        .padding(bottom = 10.dp)
-                                        .height(35.dp),
-                                    colors = CardDefaults.cardColors(cardColor)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = text,
-                                            fontFamily = SpotifyBold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(10.dp))
-                            }
-                        }
-                    }
-                }
-                else if(searchQuery == ""){}
-                else{
-                    item{
-                        CircularProgressIndicator()
-                    }
-                }
-
-                // Song Results
-                if(viewModel.selectedFilter.value == viewModel.filterOptionsList[0]){
-                    items(viewModel.songSearchResults.value.size) { index ->
-                        SongItemComposable(
-                            mainAppScreenViewModel,
-                            viewModel,
-                            musicFile = viewModel.songSearchResults.value[index],
-                            playListScreenViewModel
+    Box(modifier = Modifier.fillMaxSize()){
+        Column(
+            modifier = Modifier
+                .height(170.dp)
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF4B1D00),
+                            Color(0xFF4B1D00),
+                            Color(0xFF4B1D00),
+                            Color.Black
                         )
-                    }
-                }
-
-                // Album Results
-                else if(viewModel.selectedFilter.value == viewModel.filterOptionsList[1]){
-                    items(viewModel.albumSearchResults.value.size) { index ->
-                        AlbumItemComposable(
-                            mainAppScreenViewModel,
-                            viewModel,
-                            album = viewModel.albumSearchResults.value[index]
-                        )
-                    }
-                }
-
-                // Artist Results
-                else if(viewModel.selectedFilter.value == viewModel.filterOptionsList[2]){
-                    items(viewModel.artistSearchResults.value.size) { index ->
-                        ArtistItemComposable(
-                            mainAppScreenViewModel,
-                            viewModel,
-                            artist = viewModel.artistSearchResults.value[index]
-                        )
-                    }
-                }
-
-                // Bottom Space
-                item{
-                    Spacer(Modifier.height(innerPadding.calculateTopPadding() + 75.dp))
-                }
-
-            }
-        }
-        Box(
+                    )
+                )
         ){
-            Card(
+            Spacer(Modifier.height(50.dp))
+
+            // Search Bar
+            Column(
                 modifier = Modifier
-                    .padding(top = innerPadding.calculateTopPadding())
                     .fillMaxWidth()
-                    .height(60.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                    .padding(start = 15.dp, end = 15.dp)
+                    .height(50.dp)
+                    .background(Color.White),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ){
+                Row{
                     Spacer(Modifier.width(10.dp))
-                    Box(){
+                    Column(
+                        Modifier.height(50.dp),
+                        verticalArrangement = Arrangement.Center
+                    ){
                         Image(
                             painter = painterResource(id = R.drawable.search_icon_unselected),
                             contentDescription = "Cancel Search Button",
                             modifier = Modifier
-                                .padding(start = 10.dp)
                                 .size(20.dp)
                         )
                     }
-                    Box(){
+
+                    Column(
+                        Modifier.height(50.dp).width(310.dp),
+                        verticalArrangement = Arrangement.Center
+                    ){
                         TextField(
                             textStyle = TextStyle(
                                 fontSize = 16.sp,                         // Main input text size
@@ -211,8 +135,6 @@ fun RenderSearchScreen(
                             value = searchQuery,
                             onValueChange = { viewModel.searchQuery.value = it },
                             placeholder = { Text("Search Estia") },
-                            modifier = Modifier
-                                .width(320.dp),
                             singleLine = true,
                             colors = androidx.compose.material3.TextFieldDefaults.colors(
                                 focusedContainerColor = Color.White,
@@ -225,23 +147,148 @@ fun RenderSearchScreen(
                                 focusedPlaceholderColor = Color.Gray,
                                 unfocusedPlaceholderColor = Color.Gray
                             )
-                        )
-                    }
-                    Box(){
-                        IconButton(
-                            modifier = Modifier,
-                            onClick = {
-                                viewModel.searchQuery.value = ""
-                            }){
-                            Image(
-                                painter = painterResource(id = R.drawable.clear_icon),
-                                contentDescription = "Cancel Search Button",
-                                modifier = Modifier
-                                    .size(30.dp)
-                            )
+                        )}
+
+                    Column{
+                        if (!viewModel.searchQuery.value.isEmpty()) {
+                            IconButton(
+                                modifier = Modifier,
+                                onClick = {
+                                    viewModel.searchQuery.value = ""
+                                }) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.clear_icon),
+                                    contentDescription = "Cancel Search Button",
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
+            }
+
+            // Filter Options
+            LazyRow(
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+            ) {
+                item{
+                    Spacer(Modifier.width(20.dp))
+                }
+
+                items(viewModel.filterOptionsList.size) { index ->
+
+                    var text = viewModel.filterOptionsList[index]
+                    var cardColor = Color.Gray
+
+                    if (selectedfilter.value == text) {
+                        cardColor = Color(0x5BF35221)
+                    }
+                    Card(
+                        modifier = Modifier
+                            .clickable(onClick = {
+                                viewModel.selectedFilter.value = text
+                                viewModel.applyFilter()
+                            })
+                            .padding(bottom = 10.dp)
+                            .height(35.dp),
+                        colors = CardDefaults.cardColors(cardColor)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = text,
+                                fontFamily = SpotifyBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                }
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .padding(
+                    top = 170.dp,
+                    start = 10.dp,
+                    end = 10.dp)
+        ) {
+
+            // History
+            if (searchQuery == "") {
+                viewModel.clearSearchResults()
+                val history = viewModel.history.value
+                for (index in history.indices) {
+                    item{
+                        val musicFile = viewModel.history.value[index]
+                        val tempFile = MusicFile(
+                            id = musicFile.id,
+                            name = musicFile.name,
+                            artist = musicFile.artist,
+                            album = musicFile.album,
+                            duration = musicFile.duration,
+                            filePath = musicFile.filePath,
+                            coverArtUri = musicFile.coverArtUri,
+                            source = musicFile.source
+                        )
+                        SearchHistorySongItemComposable(
+                            mainAppScreenViewModel,
+                            viewModel,
+                            musicFile = tempFile,
+                            playListScreenViewModel
+                        )
+                    }
+                }
+            }
+
+            // Loading
+            if (viewModel.isLoading.value) {
+                item { CircularProgressIndicator() }
+            }
+
+            // Song Results
+            if (viewModel.selectedFilter.value == viewModel.filterOptionsList[0]) {
+                items(viewModel.songSearchResults.value.size) { index ->
+                    SongItemComposable(
+                        mainAppScreenViewModel,
+                        viewModel,
+                        musicFile = viewModel.songSearchResults.value[index],
+                        playListScreenViewModel
+                    )
+                }
+            }
+
+            // Album Results
+            else if (viewModel.selectedFilter.value == viewModel.filterOptionsList[1]) {
+                items(viewModel.albumSearchResults.value.size) { index ->
+                    AlbumItemComposable(
+                        mainAppScreenViewModel,
+                        viewModel,
+                        album = viewModel.albumSearchResults.value[index]
+                    )
+                }
+            }
+
+            // Artist Results
+            else {
+                items(viewModel.artistSearchResults.value.size) { index ->
+                    ArtistItemComposable(
+                        mainAppScreenViewModel,
+                        viewModel,
+                        artist = viewModel.artistSearchResults.value[index]
+                    )
+                }
+            }
+
+            item{
+                Spacer(Modifier.height(innerPadding.calculateTopPadding() + 140.dp))
             }
         }
     }
@@ -276,6 +323,7 @@ fun SongItemComposable(
                 scope.launch {
                     if (swipeOffset.value >= dragThreshold) {
                         swipeOffset.animateTo(maxOffset)
+
                         // add song to playList
                         val localMusic = MusicFile(
                             name = musicFile.title,
@@ -288,6 +336,7 @@ fun SongItemComposable(
                             id = musicFile.id
                         )
 
+                        searchScreenViewModel.addToHistory(localMusic)
                         playListScreenViewModel.enqueueInPlayQueue(localMusic)
 
                         swipeOffset.animateTo(0f) // snap back
@@ -355,7 +404,9 @@ fun SongItemComposable(
                                 id = musicFile.id
                             )
 
+                            searchScreenViewModel.addToHistory(localMusic)
                             mainAppScreenViewModel.setNowPlaying(localMusic)
+
                         }
                     })
             ) {
@@ -552,6 +603,154 @@ fun ArtistItemComposable(
                         Spacer(Modifier.height(2.dp))
                     }
                     Spacer(Modifier.width(20.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchHistorySongItemComposable(
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    searchScreenViewModel: SearchScreenViewModel,
+    musicFile: MusicFile,
+    playListScreenViewModel: PlayListScreenViewModel
+) {
+    val scope = rememberCoroutineScope()
+    var name = musicFile.name
+    var artist : String = musicFile.artist.toString()
+    val coverArt = musicFile.coverArtUri
+    if (name.length > 45) name = name.take(45)
+    if (artist.length > 45) artist = artist.take(45) + "..."
+
+    val swipeOffset = remember { Animatable(0f) }
+    val maxOffset = 250f // Max swipe distance to reveal hidden UI
+    val dragThreshold = 100f
+
+    val gestureModifier = Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onHorizontalDrag = { _, dragAmount ->
+                val newOffset =
+                    (swipeOffset.value + dragAmount).coerceIn(0f, maxOffset)
+                scope.launch { swipeOffset.snapTo(newOffset) }
+            },
+            onDragEnd = {
+                scope.launch {
+                    if (swipeOffset.value >= dragThreshold) {
+                        swipeOffset.animateTo(maxOffset)
+
+                        playListScreenViewModel.enqueueInPlayQueue(musicFile)
+
+                        swipeOffset.animateTo(0f) // snap back
+                    } else {
+                        swipeOffset.animateTo(0f) // also snap back if not enough
+                    }
+                }
+            },
+            onDragCancel = {
+                scope.launch {
+                    swipeOffset.animateTo(0f) // also snap back on cancel
+                }
+            }
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .background(Color.Black)
+            .fillMaxWidth()
+    ) {
+        // Hidden Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(65.dp)
+                .background(Color.Green),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Add To Queue",
+                color = Color.White,
+                modifier = Modifier.padding(5.dp),
+                fontFamily = SpotifyBold,
+                fontSize = 15.sp
+            )
+        }
+
+        // Visible Row
+        Row(
+            modifier = Modifier
+                .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
+                .fillMaxWidth()
+                .height(65.dp)
+                .background(Color.Black)
+                .then(gestureModifier),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+                    .height(65.dp)
+                    .clickable(onClick = {
+                        scope.launch {
+
+                            mainAppScreenViewModel.setNowPlaying(musicFile)
+
+                        }
+                    })
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier
+                            .height(50.dp)
+                            .width(50.dp)
+                    ) {
+                        val placeholderPainter = painterResource(id = R.drawable.music_icon_compressed)
+
+                        AsyncImage(
+                            model = coverArt,
+                            contentDescription = "Cover Art",
+                            modifier = Modifier.fillMaxSize(),
+                            placeholder = placeholderPainter,
+                            error = placeholderPainter,
+                            fallback = placeholderPainter,
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Column(
+                        modifier = Modifier.width(250.dp)
+                    ) {
+                        Text(
+                            maxLines = 1,
+                            fontSize = 14.sp,
+                            fontFamily = SpotifyBold,
+                            text = name,
+                            color = Color.White,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            maxLines = 1,
+                            fontSize = 12.sp,
+                            fontFamily = SpotifyBold,
+                            text = artist,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.width(20.dp))
+                    IconButton(onClick = {
+                        searchScreenViewModel.removeFromHistory(musicFile)
+                    }) {
+                        Image(
+                            modifier = Modifier.size(30.dp),
+                            painter = painterResource(id = R.drawable.clear_icon),
+                            contentDescription = "Clear Queue",
+                            colorFilter = ColorFilter.tint(Color.White)
+                        )
+                    }
                 }
             }
         }

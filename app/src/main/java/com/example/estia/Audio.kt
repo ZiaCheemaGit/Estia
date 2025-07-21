@@ -79,6 +79,8 @@ class AudioFetcher {
     fun fetchYouTubePlayList(
         playlistUrl: String
     ): MutableList<MusicFile>? {
+
+        // fix returnning youtube id
         val module = pyModule
         if (module == null) {
             Log.e("AudioFetcher", "Python module not ready yet")
@@ -119,7 +121,6 @@ class AudioFetcher {
         return songList
     }
 
-
     // new pipe extractor
     suspend fun getYouTubeStreamUrl(
         artist: String,
@@ -132,8 +133,7 @@ class AudioFetcher {
                 return@withContext null
             }
 
-            val videoId = module.callAttr("get_official_youtube_video_id", songName, artist).toString()
-            //val videoId = getOfficialYouTubeVideoId(songName, artist)
+            val videoId = getOfficialYouTubeVideoId(songName, artist)
 
             Log.d("", "Found Video ID:${videoId}")
             val url = "https://www.youtube.com/watch?v=$videoId"

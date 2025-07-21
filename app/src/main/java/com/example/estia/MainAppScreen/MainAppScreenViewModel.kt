@@ -2,7 +2,6 @@ package com.example.estia.MainAppScreen
 
 import android.content.Context
 import android.graphics.drawable.BitmapDrawable
-import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,20 +23,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.os.Build
-import android.widget.RemoteViews
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.core.app.NotificationCompat
-import com.chaquo.python.PyObject
-import com.chaquo.python.Python
 import com.example.estia.AudioFetcher
-import com.example.estia.MainActivity
 import com.example.estia.MusicPlaybackService
 import com.example.estia.MusicServiceController
 import kotlinx.coroutines.CoroutineScope
@@ -48,22 +38,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.downloader.Downloader
-import org.schabi.newpipe.extractor.downloader.Response
-import org.schabi.newpipe.extractor.exceptions.ExtractionException
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
-import java.util.regex.Pattern
-import java.util.zip.GZIPInputStream
 import kotlin.coroutines.cancellation.CancellationException
 
 class MainAppScreenViewModel : ViewModel(){
@@ -292,27 +268,17 @@ class MainAppScreenViewModel : ViewModel(){
 
     // Login options and their mapping with their icons in res/drawable/
     val unselectedBottomBarIcons = mapOf(
-        "exploreIcon" to R.drawable.explore_icon_unselected,
+        "exploreIcon" to R.drawable.home_icon_unselected,
         "searchIcon" to R.drawable.search_icon_unselected,
         "fileExplorerIcon" to R.drawable.file_explorer_icon_unselected,
         "accountIcon" to R.drawable.account_icon_unselected,
     )
 
-    val unselectedTopBarIcons = mapOf(
-        "playListIcon" to R.drawable.playlist_icon_unselected,
-        "settingsIcon" to R.drawable.settings_icon_unselected
-    )
-
     val selectedBottomBarIcons = mapOf(
-        "exploreIcon" to R.drawable.explore_icon_selected,
+        "exploreIcon" to R.drawable.home_icon_selected_icon,
         "searchIcon" to R.drawable.search_icon_selected,
         "fileExplorerIcon" to R.drawable.file_explorer_icon_selected,
         "accountIcon" to R.drawable.account_icon_selected,
-    )
-
-    val selectedTopBarIcons = mapOf(
-        "playListIcon" to R.drawable.playlist_icon_selected,
-        "settingsIcon" to R.drawable.settings_icon_selected,
     )
 
     val screenMapping = mapOf(

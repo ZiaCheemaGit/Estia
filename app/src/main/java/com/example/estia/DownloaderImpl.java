@@ -53,40 +53,6 @@ public final class DownloaderImpl extends Downloader {
         return instance;
     }
 
-    public static DownloaderImpl getInstance() {
-        return instance;
-    }
-
-
-    public String getCookie(final String key) {
-        return mCookies.get(key);
-    }
-
-    public void setCookie(final String key, final String cookie) {
-        mCookies.put(key, cookie);
-    }
-
-    public void removeCookie(final String key) {
-        mCookies.remove(key);
-    }
-
-    /**
-     * Get the size of the content that the url is pointing by firing a HEAD request.
-     *
-     * @param url an url pointing to the content
-     * @return the size of the content, in bytes
-     */
-    public long getContentLength(final String url) throws IOException {
-        try {
-            final Response response = head(url);
-            return Long.parseLong(response.getHeader("Content-Length"));
-        } catch (final NumberFormatException e) {
-            throw new IOException("Invalid content length", e);
-        } catch (final ReCaptchaException e) {
-            throw new IOException(e);
-        }
-    }
-
     @Override
     public Response execute(@NonNull final Request request)
             throws IOException, ReCaptchaException {

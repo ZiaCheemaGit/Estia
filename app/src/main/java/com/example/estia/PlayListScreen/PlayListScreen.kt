@@ -78,7 +78,6 @@ fun RenderPlayListScreen(
 
 }
 
-
 @Composable
 fun MusicListView(
     expandableDrawerViewModel : PlayerDrawerViewModel,
@@ -425,7 +424,6 @@ fun MusicListView(
         }
     }
 }
-
 
 @Composable
 fun NoMusicFoundInPlayQueue(){

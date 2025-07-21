@@ -2,7 +2,6 @@ package com.example.estia.MainAppScreen
 
 import RenderAccountScreen
 import android.Manifest
-import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,7 +12,6 @@ import androidx.navigation.NavController
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,11 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.*
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.layout.*
@@ -35,25 +30,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.IconButton
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.tooling.preview.Preview
-import coil.compose.AsyncImage
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
 import com.example.estia.AccountScreen.AccountScreenViewModel
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.FileExplorerScreen.RenderFileExplorerScreen
-import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
-import com.example.estia.R
-import com.example.estia.SpotifyBold
 import com.example.estia.PlayerDrawer.playerDrawer
 import com.example.estia.PlayListScreen.RenderPlayListScreen
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.SearchScreen.RenderSearchScreen
 import com.example.estia.SearchScreen.SearchScreenViewModel
-import com.example.estia.SetSystemBarsColor
-import kotlinx.coroutines.launch
-import kotlin.math.exp
+import com.example.estia.HomeScreen.RenderExploreScreen
 
 @Composable
 fun MainAppScreen(
@@ -74,7 +60,7 @@ fun MainAppScreen(
     mainAppScreenViewModel.initService(LocalContext.current)
     mainAppScreenViewModel.loadPlayBackState()
 
-    searchScreenViewModel.getCountryFromIP()
+    searchScreenViewModel.initializeDataBAse(LocalContext.current)
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
 
@@ -82,12 +68,6 @@ fun MainAppScreen(
         modifier = Modifier
             .fillMaxSize(),
         containerColor = Color.Black,
-        topBar = {
-            TransparentTopAppBar(fileExplorerViewModel, mainAppScreenViewModel){
-                    screen ->
-                mainAppScreenViewModel.changeScreen(screen)
-            }
-        },
         bottomBar = {
             TransparentBottomBar(mainAppScreenViewModel){
                     screen ->
@@ -174,105 +154,6 @@ fun RenderSettingsScreen(mainAppScreenViewModel : MainAppScreenViewModel){
             )
         }
     }
-}
-
-@Composable
-fun RenderExploreScreen(mainAppScreenViewModel : MainAppScreenViewModel){
-    LazyColumn(
-    ) {
-        items(100) { index ->
-            Text(
-                text = "Explore Screen     Explore Screen   Explore Screen   Explore Screen" +
-                        "Explore Screen   Explore Screen    Explore Screen",
-                modifier = Modifier.padding(16.dp),
-                color = Color.White
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TransparentTopAppBar(
-    fileExplorerViewModel: FileExplorerViewModel,
-    mainAppScreenViewModel: MainAppScreenViewModel,
-    screenToShow : (String) -> Unit
-) {
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Black.copy(alpha = 0.7f), // Semi-transparent
-            titleContentColor = Color.White,
-            actionIconContentColor = Color.White
-        ),
-        title = {
-            Row(horizontalArrangement = Arrangement.Center) {
-                Image(
-                    painter = painterResource(id = R.drawable.main_logo),
-                    contentDescription = "Simple Music Icon",
-                    modifier = Modifier.size(45.dp),
-                    colorFilter = ColorFilter.tint(Color.White)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    modifier = Modifier.padding(9.dp),
-                    text = "ESTIA",
-                    fontFamily = SpotifyBold,
-                    color = Color.White,
-                    fontSize = MaterialTheme.typography.titleLarge.fontSize,
-                )
-
-                if(mainAppScreenViewModel.currentScreen == "FileExplorerScreen"){
-                    Spacer(modifier = Modifier.width(67.dp))
-                    IconButton(
-                        onClick = {
-                            fileExplorerViewModel.showSearchBar.value = true
-                        }
-                    ) {
-
-                        Image(
-                            painter = painterResource(id = R.drawable.search_icon_unselected),
-                            contentDescription = "search in file explorer",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = ColorFilter.tint(Color.White)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(15.dp))
-                }
-                else{
-                    Spacer(modifier = Modifier.width(130.dp))
-                }
-                mainAppScreenViewModel.unselectedTopBarIcons.forEach {
-                    icon ->
-                    IconButton(
-                        onClick = {
-                            mainAppScreenViewModel.selectedIcon = icon.key
-                            screenToShow(icon.key) }
-                    ) {
-                        val iconId = if (mainAppScreenViewModel.selectedIcon == icon.key) {
-                            mainAppScreenViewModel.selectedTopBarIcons[icon.key] ?: icon.value
-                        } else {
-                            icon.value
-                        }
-                        Image(
-                            painter = painterResource(id = iconId),
-                            contentDescription = icon.key,
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = ColorFilter.tint(Color.White)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(15.dp))
-                }
-            }
-        },
-        modifier = Modifier.background(
-            Brush.verticalGradient(
-                colors = listOf(
-                    Color.Black.copy(alpha = 0.7f),
-                    Color.Transparent
-                )
-            )
-        )
-    )
 }
 
 @Composable
