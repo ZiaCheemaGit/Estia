@@ -163,9 +163,6 @@ fun RenderFileExplorerScreen(
                             innerPadding,
                             expandableDrawerViewModel)
                     }
-                    else{
-                        NoMusicFoundInLocalStorageScreen()
-                    }
                 }
             }
         }
@@ -287,6 +284,10 @@ fun MusicListView(
     expandableDrawerViewModel: PlayerDrawerViewModel
 ) {
 
+    LaunchedEffect(fileExplorerViewModel.permanentAllSongsList) {
+        fileExplorerViewModel.checkAndFixDownloads()
+    }
+
     val isScrolledDown by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 && listState.firstVisibleItemScrollOffset > 0
@@ -331,79 +332,77 @@ fun MusicListView(
             .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
     ) {
+        if(!showSearchBar.value){
+            Column(
+                modifier = Modifier
+                    .height(150.dp)
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF4B1D00),
+                                Color(0xFF4B1D00),
+                                Color.Black
+                            )
+                        )
+                    )
+            ) {
+                Row{
+                    Column {
+                        Text(
+                            modifier = Modifier
+                                .padding(top = 70.dp, start = 20.dp),
+                            text = "Phone Storage",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontFamily = SpotifyBold
+                        )
+                    }
+                    Spacer(Modifier.width(165.dp))
+                    Column(
+                        modifier = Modifier
+                            .padding(top = 60.dp, end = 20.dp),
+                    ) {
+                        IconButton(
+                            onClick = {
+                                fileExplorerViewModel.showSearchBar.value = true
+                            }
+                        ) {
+                            Image(
+                                modifier = Modifier.size(20.dp),
+                                painter = painterResource(id = R.drawable.search_icon_unselected),
+                                contentDescription = "Clear Queue",
+                                colorFilter = ColorFilter.tint(Color.White)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        else{
+            Column(
+                modifier = Modifier
+                    .height(130.dp)
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF4B1D00),
+                                Color.Black
+                            )
+                        )
+                    )
+            ) {
+            }
+        }
 
         // LazyColumn with song list
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
+                .padding(top = 140.dp)
         ) {
-            // Top Space
-            item{
-                if(!showSearchBar.value){
-                    Column(
-                        modifier = Modifier
-                            .height(150.dp)
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFF4B1D00),
-                                        Color(0xFF4B1D00),
-                                        Color.Black
-                                    )
-                                )
-                            )
-                    ) {
-                        Row{
-                            Column {
-                                Text(
-                                    modifier = Modifier
-                                        .padding(top = 70.dp, start = 20.dp),
-                                    text = "Phone Storage",
-                                    color = Color.White,
-                                    fontSize = 20.sp,
-                                    fontFamily = SpotifyBold
-                                )
-                            }
-                            Spacer(Modifier.width(165.dp))
-                            Column(
-                                modifier = Modifier
-                                    .padding(top = 60.dp, end = 20.dp),
-                            ) {
-                                IconButton(
-                                    onClick = {
-                                        fileExplorerViewModel.showSearchBar.value = true
-                                    }
-                                ) {
-                                    Image(
-                                        modifier = Modifier.size(20.dp),
-                                        painter = painterResource(id = R.drawable.search_icon_unselected),
-                                        contentDescription = "Clear Queue",
-                                        colorFilter = ColorFilter.tint(Color.White)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                else{
-                    Column(
-                        modifier = Modifier
-                            .height(130.dp)
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFF4B1D00),
-                                        Color.Black
-                                    )
-                                )
-                            )
-                    ) {
-                    }
-                }
-            }
 
             // No Music Found
             item{

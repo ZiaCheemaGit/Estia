@@ -39,6 +39,7 @@ import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -149,17 +150,16 @@ class MainAppScreenViewModel : ViewModel(){
                         _nowPlaying.value = nowPlaying.value?.copy(source = "Search")
 
                         // Fetch audio stream URL
-                        val url = audioFetcher.fetchAudioStreamUrl(
+                        val url = audioFetcher.fetchAudioStreamUrl_newpipe(
                             nowPlaying.value?.artist.orEmpty(),
                             nowPlaying.value?.name.orEmpty()
                         )
 
-                        _nowPlaying.value = nowPlaying.value?.copy(filePath = url.toString())
-                        if(!loading){
-                            play()
-                        }
-                        val duration = getMetadataDuration(url.toString())
+                        _nowPlaying.value = nowPlaying.value?.copy(
+                            filePath = url.toString(), streamableURL = url.toString())
+                        play()
                         isLoadingSongURL.value = false
+                        val duration = getMetadataDuration(url.toString())
                         // Set duration
                         _nowPlaying.value = nowPlaying.value?.copy(duration = duration)
 
@@ -271,14 +271,14 @@ class MainAppScreenViewModel : ViewModel(){
         "exploreIcon" to R.drawable.home_icon_unselected,
         "searchIcon" to R.drawable.search_icon_unselected,
         "fileExplorerIcon" to R.drawable.file_explorer_icon_unselected,
-        "accountIcon" to R.drawable.account_icon_unselected,
+        "accountIcon" to R.drawable.library_icon_unselected,
     )
 
     val selectedBottomBarIcons = mapOf(
         "exploreIcon" to R.drawable.home_icon_selected_icon,
         "searchIcon" to R.drawable.search_icon_selected,
         "fileExplorerIcon" to R.drawable.file_explorer_icon_selected,
-        "accountIcon" to R.drawable.account_icon_selected,
+        "accountIcon" to R.drawable.library_icon_selected,
     )
 
     val screenMapping = mapOf(
@@ -307,14 +307,30 @@ class MainAppScreenViewModel : ViewModel(){
 
                 bitmap?.let {
                     val palette = Palette.from(it).generate()
-                    val dominantColor = palette.getDominantColor(android.graphics.Color.BLACK)
-                    Color(dominantColor)
-                } ?: Color(0xFFFFC0CB)
+                    var dominantColorInt = palette.getDominantColor(android.graphics.Color.BLACK)
+
+                    // Extract RGB
+                    val red = android.graphics.Color.red(dominantColorInt)
+                    val green = android.graphics.Color.green(dominantColorInt)
+                    val blue = android.graphics.Color.blue(dominantColorInt)
+
+                    // Check if it's too white (all components above 240, tweak threshold as needed)
+                    if (red > 200 && green > 200 && blue > 200) {
+                        // Reduce each component slightly
+                        val newRed = (red * 0.8).toInt().coerceAtMost(255)
+                        val newGreen = (green * 0.8).toInt().coerceAtMost(255)
+                        val newBlue = (blue * 0.8).toInt().coerceAtMost(255)
+                        dominantColorInt = android.graphics.Color.rgb(newRed, newGreen, newBlue)
+                    }
+
+                    Color(dominantColorInt)
+                } ?: Color(0xFFFFC0CB) // Fallback
             } catch (e: Exception) {
                 Log.e("DominantColor", "Error extracting color", e)
                 Color(0xFFFFC0CB)
             }
         }
+
     }
 
     fun formatDuration(durationMs: Long): String {
@@ -385,5 +401,46 @@ class MainAppScreenViewModel : ViewModel(){
         }
 
         return downloadImageJob?.await()
+    }
+    fun copyImageToInternalStorage(context: Context, sourcePath: String): String? {
+        return try {
+            val sourceFile = File(sourcePath)
+            if (!sourceFile.exists()) return null
+
+            // Create destination directory inside internal storage
+            val destDir = File(context.filesDir, "cover_images")
+            if (!destDir.exists()) destDir.mkdirs()
+
+            // Define the destination file
+            val destFile = File(destDir, sourceFile.name)
+
+            // Copy file
+            FileInputStream(sourceFile).use { input ->
+                FileOutputStream(destFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            // Return absolute path of copied file
+            destFile.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun downloadToDB(){
+        if(nowPlaying.value != null && nowPlaying.value?.filePath != null)
+        {
+            viewModelScope.launch{
+                nowPlaying.value!!.filePath = nowPlaying.value!!.id.toString() + ".estia"
+                nowPlaying.value?.coverArtUri = copyImageToInternalStorage(
+                    context,
+                    nowPlaying.value?.coverArtUri!!
+                )
+                db.musicDao().upsertMusicFile(nowPlaying.value!!)
+            }
+        }
+
     }
 }

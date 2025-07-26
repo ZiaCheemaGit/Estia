@@ -56,8 +56,8 @@ data class MusicFile(
     var filePath : String? = null,
     var coverArtUri : String? = null,
     var source : String?,
+    var streamableURL: String? = null
 )
-
 
 @Entity
 data class PlayBackMusicFile(
@@ -75,7 +75,6 @@ data class PlayBackMusicFile(
     val color: Int? = null
 )
 
-
 @Entity(tableName = "lyrics_table")
 data class LyricsEntry(
     @PrimaryKey(autoGenerate = true)
@@ -85,7 +84,6 @@ data class LyricsEntry(
     val artistName: String,
     val lyrics: String
 )
-
 
 @Entity(tableName = "search_history")
 data class SearchHistoryEntry(
@@ -116,7 +114,6 @@ interface LyricsDao {
     @Query("DELETE FROM lyrics_table")
     suspend fun deleteAllLyrics()
 }
-
 
 
 @Dao

@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -301,6 +302,7 @@ fun SongItemComposable(
     musicFile: DeezerTrack,
     playListScreenViewModel: PlayListScreenViewModel
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     var name = musicFile.title
     var artist : String = musicFile.artist.name
@@ -404,6 +406,7 @@ fun SongItemComposable(
                                 id = musicFile.id
                             )
 
+                            keyboardController?.hide()
                             searchScreenViewModel.addToHistory(localMusic)
                             mainAppScreenViewModel.setNowPlaying(localMusic)
 

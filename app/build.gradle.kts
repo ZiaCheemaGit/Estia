@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "com.example.estia"
     compileSdk = 35
+    ndkVersion = "29.0.13599879"
 
     defaultConfig {
         applicationId = "com.example.estia"
@@ -64,6 +65,14 @@ kapt {
 }
 
 dependencies {
+
+    // Media Transformer
+    implementation("androidx.media3:media3-common:1.3.1")
+    implementation("androidx.media3:media3-transformer:1.3.1")
+
+    // Audio Tagging
+    implementation("com.mpatric:mp3agic:0.9.1")
+    implementation("org.jaudiotagger:jaudiotagger:2.0.1")
 
     // new pipe extractor
     implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.24.6")

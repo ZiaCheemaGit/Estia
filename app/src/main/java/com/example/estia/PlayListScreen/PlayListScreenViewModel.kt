@@ -37,7 +37,7 @@ class PlayListScreenViewModel : ViewModel() {
         // From search but url has to load
         if(musicFile.source == "...."){
             viewModelScope.launch{
-                val url = audioFetcher.fetchAudioStreamUrl(
+                val url = audioFetcher.fetchAudioStreamUrl_ytdlp(
                     musicFile.artist.orEmpty(),
                     musicFile.name
                 )

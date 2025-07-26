@@ -8,7 +8,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.*
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +35,7 @@ class AudioFetcher {
     }
 
     // yt-dlp
-    suspend fun fetchAudioStreamUrl(
+    suspend fun fetchAudioStreamUrl_ytdlp(
         artist: String,
         songName: String
     ): String? = withContext(Dispatchers.IO) {
@@ -76,7 +75,7 @@ class AudioFetcher {
         return@withContext resultUrl
     }
 
-    fun fetchYouTubePlayList(
+    fun fetchYouTubePlayList_ytdlp(
         playlistUrl: String
     ): MutableList<MusicFile>? {
 
@@ -113,7 +112,7 @@ class AudioFetcher {
                 id = id,
                 album = album,
                 duration = duration,
-                coverArtUri = thumbnail
+                coverArtUri = thumbnail,
             )
             songList.add(song)
         }
@@ -122,7 +121,7 @@ class AudioFetcher {
     }
 
     // new pipe extractor
-    suspend fun getYouTubeStreamUrl(
+    suspend fun fetchAudioStreamUrl_newpipe(
         artist: String,
         songName: String
     ): String? = withContext(Dispatchers.IO) {
@@ -133,7 +132,7 @@ class AudioFetcher {
                 return@withContext null
             }
 
-            val videoId = getOfficialYouTubeVideoId(songName, artist)
+            val videoId = getOfficialYouTubeVideoId_newpipe(songName, artist)
 
             Log.d("", "Found Video ID:${videoId}")
             val url = "https://www.youtube.com/watch?v=$videoId"
@@ -155,7 +154,7 @@ class AudioFetcher {
     }
 
     // use new pipe extractor to get youtube video id
-    suspend fun getOfficialYouTubeVideoId(songName: String, artistName: String): String? = withContext(Dispatchers.IO) {
+    suspend fun getOfficialYouTubeVideoId_newpipe(songName: String, artistName: String): String? = withContext(Dispatchers.IO) {
         try {
             val query = "$songName $artistName"
             val service = ServiceList.YouTube

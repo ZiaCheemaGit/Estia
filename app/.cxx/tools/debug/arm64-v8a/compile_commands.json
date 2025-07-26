@@ -1,0 +1,7 @@
+[
+{
+  "directory": "D:/Estia/app/.cxx/Debug/434fm5x8/arm64-v8a",
+  "command": "C:\\Users\\PC\\AppData\\Local\\Android\\Sdk\\ndk\\29.0.13599879\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=aarch64-none-linux-android24 --sysroot=C:/Users/PC/AppData/Local/Android/Sdk/ndk/29.0.13599879/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Destia_EXPORTS -ID:/Estia/app/src/main/cpp/../ffmpeg-android-maker/output/include/1_ABI -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fno-limit-debug-info  -fPIC -o CMakeFiles\\estia.dir\\estia.cpp.o -c D:\\Estia\\app\\src\\main\\cpp\\estia.cpp",
+  "file": "D:\\Estia\\app\\src\\main\\cpp\\estia.cpp"
+}
+]

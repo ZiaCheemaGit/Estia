@@ -5,17 +5,18 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
-import androidx.compose.runtime.getValue
+import android.util.Patterns
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.estia.AudioFetcher
 import com.example.estia.MusicDataBase
 import com.example.estia.MusicFile
+import com.example.estia.downloader.DownloaderObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.io.File
-import java.util.Locale
+import java.net.HttpURLConnection
+import java.net.URL
 
 class FileExplorerViewModel : ViewModel() {
 
@@ -36,16 +38,31 @@ class FileExplorerViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val originalList = permanentAllSongsList.value
 
-            val filtered = if (searchQuery.value.isNotEmpty()) {
-                originalList.filter {
-                    it.name?.contains(searchQuery.value, ignoreCase = true) == true ||
-                    it.artist?.contains(searchQuery.value, ignoreCase = true) == true ||
-                    it.album?.contains(searchQuery.value, ignoreCase = true) == true
-                }
+            val query = searchQuery.value.trim()
+            val filtered = if (query.isNotEmpty()) {
+                originalList
+                    .map { song ->
+                        val nameMatch = song.name.contains(query, ignoreCase = true)
+                        val artistMatch = song.artist?.contains(query, ignoreCase = true) ?: false
+                        val albumMatch = song.album?.contains(query, ignoreCase = true) ?: false
+
+                        val score = when {
+                            nameMatch -> 3
+                            artistMatch -> 2
+                            albumMatch -> 1
+                            else -> 0
+                        }
+
+                        song to score
+                    }
+                    .filter { it.second > 0 }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
             } else {
                 originalList
             }
-            if(filtered.size != 0){
+
+            if (filtered.isNotEmpty()) {
                 musicList.value = filtered
             }
         }
@@ -78,12 +95,38 @@ class FileExplorerViewModel : ViewModel() {
     private val _isLoading = mutableStateOf(true)
     val isLoading = _isLoading
 
-    fun loadMusicFiles() = viewModelScope.launch(Dispatchers.IO) {
-
-        if(permanentAllSongsList.value.isNotEmpty()){
-            isLoading.value = false
-            return@launch
+    fun isValidUrl(url: String): Boolean {
+        return Patterns.WEB_URL.matcher(url).matches()
+    }
+    fun isValidFilePath(path: String): Boolean {
+        return try {
+            val file = File(path)
+            file.exists() && file.isFile
+        } catch (e: Exception) {
+            false
         }
+    }
+    fun getEstiaFileAbsolutePath(fileName: String): String {
+        val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+        val estiaDir = File(musicDir, "Estia")
+        return File(estiaDir, fileName).absolutePath
+    }
+    private fun isStreamUrlValid(urlString: String): Boolean {
+        return try {
+            val url = URL(urlString)
+            with(url.openConnection() as HttpURLConnection) {
+                requestMethod = "HEAD"
+                connectTimeout = 3000
+                readTimeout = 3000
+                connect()
+                responseCode == HttpURLConnection.HTTP_OK
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun loadMusicFiles() = viewModelScope.launch(Dispatchers.IO) {
 
         var existingSongs = db.musicDao().getAllMusic().firstOrNull()
         if (!existingSongs.isNullOrEmpty()) {
@@ -156,6 +199,26 @@ class FileExplorerViewModel : ViewModel() {
                     _isLoading.value = false
                     return@launch
                 }
+            }
+        }
+    }
+
+    suspend fun checkAndFixDownloads(){
+        for (song in permanentAllSongsList.value){
+            if (isValidUrl(song.streamableURL.toString()) and !isValidFilePath(song.filePath.toString()))
+            {
+                if (!isStreamUrlValid(song.streamableURL.toString())){
+                    song.streamableURL = null
+                    song.streamableURL = AudioFetcher().fetchAudioStreamUrl_ytdlp(song.artist!!, song.name)
+                    while(song.streamableURL == null){
+                        delay(1)
+                    }
+                }
+                DownloaderObject.downloadFile(song)
+                db.musicDao().deleteMusicFile(song)
+                song.filePath = getEstiaFileAbsolutePath(song.id.toString() + ".estia")
+                song.source = "Local Storage"
+                db.musicDao().upsertMusicFile(song)
             }
         }
     }

@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import com.example.estia.AccountScreen.AccountScreenViewModel
 import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.FileExplorerScreen.RenderFileExplorerScreen
+import com.example.estia.HomeScreen.HomeScreenViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.playerDrawer
 import com.example.estia.PlayListScreen.RenderPlayListScreen
@@ -55,6 +56,7 @@ fun MainAppScreen(
     val playListScreenViewModel : PlayListScreenViewModel = viewModel()
     val searchScreenViewModel : SearchScreenViewModel = viewModel()
     val playerDrawerViewModel : PlayerDrawerViewModel = viewModel()
+    val homeScreenViewModel: HomeScreenViewModel = viewModel()
 
     mainAppScreenViewModel.setContextandDB(LocalContext.current)
     mainAppScreenViewModel.initService(LocalContext.current)
@@ -78,7 +80,11 @@ fun MainAppScreen(
             Box(){
                 when (mainAppScreenViewModel.currentScreen) {
 
-                    "ExploreScreen" -> RenderExploreScreen(mainAppScreenViewModel)
+                    "ExploreScreen" -> RenderExploreScreen(
+                        homeScreenViewModel,
+                        mainAppScreenViewModel,
+                        innerPadding
+                    )
 
                     "SearchScreen" -> RenderSearchScreen(
                         innerPadding,
@@ -119,7 +125,8 @@ fun MainAppScreen(
                         mainAppScreenViewModel,
                         innerPadding = innerPadding,
                         expandableDrawerViewModel = playerDrawerViewModel,
-                        navController = navController
+                        navController = navController,
+                        fileExplorerViewModel = fileExplorerViewModel
                     )
                 }
 

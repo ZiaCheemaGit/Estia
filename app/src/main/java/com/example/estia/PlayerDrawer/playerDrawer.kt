@@ -1,7 +1,5 @@
 package com.example.estia.PlayerDrawer
 
-import android.graphics.BitmapFactory
-import android.net.Uri
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,9 +37,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.IconButton
-import androidx.compose.material.swipeable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
@@ -61,7 +57,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -74,7 +69,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.MusicFile
@@ -83,16 +77,14 @@ import com.example.estia.SpotifyBold
 import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.unit.Dp
 import androidx.navigation.NavController
+import com.example.estia.FileExplorerScreen.FileExplorerViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlaybackController
-import kotlinx.coroutines.delay
-import kotlin.math.abs
+import kotlin.Long
+import kotlin.String
 import kotlin.toString
-import java.io.File
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -101,7 +93,8 @@ fun playerDrawer(
     mainAppScreenViewModel: MainAppScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
     innerPadding: PaddingValues,
-    navController: NavController
+    navController: NavController,
+    fileExplorerViewModel: FileExplorerViewModel
 ) {
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
@@ -217,7 +210,8 @@ fun playerDrawer(
                             playListViewModel = playListViewModel,
                             playNext = PlaybackController.onNext!!,
                             playPrevious = PlaybackController.onPrevious!!,
-                            navController = navController
+                            navController = navController,
+                            fileExplorerViewModel = fileExplorerViewModel
                         )
                     }
                     else{
@@ -401,6 +395,7 @@ fun LargeMusicPlayer(
     playListViewModel: PlayListScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
     mainAppScreenViewModel: MainAppScreenViewModel,
+    fileExplorerViewModel: FileExplorerViewModel,
     nowPlaying: MusicFile?,
     dominantColor: Color,
     list : List<Color>,
@@ -420,6 +415,8 @@ fun LargeMusicPlayer(
 
     var currentPosition = mainAppScreenViewModel.currentPosition.longValue
     var duration : Long = mainAppScreenViewModel.nowPlaying.value?.duration ?: 0L
+
+    val localStorageSongsList = fileExplorerViewModel.permanentAllSongsList.value
 
     val listState = rememberLazyListState()
 
@@ -597,6 +594,8 @@ fun LargeMusicPlayer(
                                 color = artistColor,
                             )
                         }
+
+                        // More Icons
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -654,11 +653,30 @@ fun LargeMusicPlayer(
                     } else {
                         R.drawable.pause_icon_large
                     }
-
+                    var resouceID = R.drawable.download_icon
+                    if(localStorageSongsList.any { it.id == nowPlaying?.id }){
+                        resouceID = R.drawable.downloaded_icon
+                    }
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ){
+                        IconButton(
+                            enabled = !mainAppScreenViewModel.isLoadingSongURL.value and
+                                    (resouceID != R.drawable.downloaded_icon),
+                            onClick = {
+                                mainAppScreenViewModel.downloadToDB()
+                                fileExplorerViewModel.loadMusicFiles()
+                        }
+                        ){
+                            Image(
+                                painter = painterResource(id = resouceID),
+                                contentDescription = "Download Song Button",
+                                modifier = Modifier.size(30.dp),
+                                colorFilter = ColorFilter.tint(nameColor)
+                            )
+                        }
+
                         IconButton(
                             modifier = Modifier.size(100.dp),
                             onClick = {
@@ -706,6 +724,20 @@ fun LargeMusicPlayer(
                                 painter = painterResource(id = R.drawable.play_next_icon),
                                 contentDescription = "Pause Button",
                                 modifier = Modifier.size(45.dp),
+                                colorFilter = ColorFilter.tint(nameColor)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                mainAppScreenViewModel.changeScreen("playListIcon")
+                                expandableDrawerViewModel.collapse()
+                            }
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.play_queue_icon),
+                                contentDescription = "Play Queue",
+                                modifier = Modifier.size(35.dp),
                                 colorFilter = ColorFilter.tint(nameColor)
                             )
                         }

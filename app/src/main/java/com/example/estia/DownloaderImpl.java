@@ -104,4 +104,8 @@ public final class DownloaderImpl extends Downloader {
         return new Response(response.code(), response.message(), response.headers().toMultimap(),
                 responseBodyToReturn, latestUrl);
     }
+
+    public static DownloaderImpl getInstance() {
+        return instance;
+    }
 }
