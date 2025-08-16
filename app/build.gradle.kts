@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.estia"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "29.0.13599879"
 
     defaultConfig {
@@ -38,7 +38,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        //isCoreLibraryDesugaringEnabled = true
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -52,8 +52,8 @@ chaquopy {
     defaultConfig {
         version = "3.11"
         pip{
-            install("yt-dlp")
             install("ytmusicapi")
+            install("yt-dlp")
         }
 
     }
@@ -66,6 +66,10 @@ kapt {
 
 dependencies {
 
+    // new pipe extractor
+    //implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.26.5")
+    implementation("com.github.ZiaCheemaGit:NewPipeExtractor:final")
+
     // Media Transformer
     implementation("androidx.media3:media3-common:1.3.1")
     implementation("androidx.media3:media3-transformer:1.3.1")
@@ -74,8 +78,6 @@ dependencies {
     implementation("com.mpatric:mp3agic:0.9.1")
     implementation("org.jaudiotagger:jaudiotagger:2.0.1")
 
-    // new pipe extractor
-    implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.24.6")
     // Required for minSdk < 33
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 

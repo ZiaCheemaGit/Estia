@@ -30,32 +30,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.IconButton
 import androidx.compose.ui.graphics.ColorFilter
-import com.example.estia.AccountScreen.AccountScreenViewModel
-import com.example.estia.FileExplorerScreen.FileExplorerViewModel
-import com.example.estia.FileExplorerScreen.RenderFileExplorerScreen
+import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
+import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
 import com.example.estia.HomeScreen.HomeScreenViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
-import com.example.estia.PlayerDrawer.playerDrawer
-import com.example.estia.PlayListScreen.RenderPlayListScreen
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
-import com.example.estia.SearchScreen.RenderSearchScreen
-import com.example.estia.SearchScreen.SearchScreenViewModel
+import com.example.estia.SearchScreen.MainScreen.RenderSearchScreen
+import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
 import com.example.estia.HomeScreen.RenderExploreScreen
+import com.example.estia.ScreenRouter
+import com.example.estia.WindowInfo
 
 @Composable
 fun MainAppScreen(
     mainAppScreenViewModel: MainAppScreenViewModel,
     navController: NavController,
     fileExplorerViewModel: FileExplorerViewModel,
+    expandableDrawerViewModel: PlayerDrawerViewModel,
+    playListScreenViewModel : PlayListScreenViewModel,
+    accountScreenViewModel: AccountScreenViewModel,
+    windowInfo: WindowInfo
 ) {
-    val expandableDrawerViewModel = viewModel<PlayerDrawerViewModel>()
-        
+
     RequestMediaPlaybackPermission()
 
-    val accountScreenViewModel: AccountScreenViewModel = viewModel()
-    val playListScreenViewModel : PlayListScreenViewModel = viewModel()
     val searchScreenViewModel : SearchScreenViewModel = viewModel()
-    val playerDrawerViewModel : PlayerDrawerViewModel = viewModel()
     val homeScreenViewModel: HomeScreenViewModel = viewModel()
 
     mainAppScreenViewModel.setContextandDB(LocalContext.current)
@@ -71,13 +70,14 @@ fun MainAppScreen(
             .fillMaxSize(),
         containerColor = Color.Black,
         bottomBar = {
-            TransparentBottomBar(mainAppScreenViewModel){
+            TransparentBottomBar(mainAppScreenViewModel, navController, windowInfo){
                     screen ->
                 mainAppScreenViewModel.changeScreen(screen)
             }
         },
         content = { innerPadding ->
             Box(){
+
                 when (mainAppScreenViewModel.currentScreen) {
 
                     "ExploreScreen" -> RenderExploreScreen(
@@ -93,46 +93,19 @@ fun MainAppScreen(
                         playListScreenViewModel
                     )
 
-                    "FileExplorerScreen" ->
-                        RenderFileExplorerScreen(
-                            playListScreenViewModel,
-                            mainAppScreenViewModel,
-                            fileExplorerViewModel,
-                            innerPadding,
-                            expandableDrawerViewModel = expandableDrawerViewModel
-                        )
-
                     "AccountScreen" -> RenderAccountScreen(
-                        innerPadding,
-                        mainAppScreenViewModel,
-                        accountScreenViewModel
-                    )
-
-                    "SettingsScreen" -> RenderSettingsScreen(mainAppScreenViewModel)
-
-                    "PlayListScreen" -> RenderPlayListScreen(
-                        fileExplorerViewModel,
                         expandableDrawerViewModel,
+                        playListScreenViewModel,
                         innerPadding,
-                        playListScreenViewModel,
-                        mainAppScreenViewModel)
-
-                }
-                
-                if(nowPlaying != null){
-                    playerDrawer(
-                        playListScreenViewModel,
                         mainAppScreenViewModel,
-                        innerPadding = innerPadding,
-                        expandableDrawerViewModel = playerDrawerViewModel,
-                        navController = navController,
-                        fileExplorerViewModel = fileExplorerViewModel
+                        fileExplorerViewModel,
+                        accountScreenViewModel,
+                        navController,
                     )
+
                 }
 
-                val list by fileExplorerViewModel.permanentAllSongsList.collectAsState()
-
-                LaunchedEffect(list) {
+                LaunchedEffect(fileExplorerViewModel.permanentAllSongsList) {
                     playListScreenViewModel.setLocalStorageQueue(fileExplorerViewModel.permanentAllSongsList.value)
                 }
 
@@ -164,10 +137,18 @@ fun RenderSettingsScreen(mainAppScreenViewModel : MainAppScreenViewModel){
 }
 
 @Composable
-fun TransparentBottomBar(mainAppScreenViewModel: MainAppScreenViewModel, screenToShow : (String) -> Unit) {
+fun TransparentBottomBar(
+    mainAppScreenViewModel: MainAppScreenViewModel,
+    navController: NavController,
+    windowInfo: WindowInfo,
+    screenToShow : (String) -> Unit
+) {
+    val bottomAppBarHeight = windowInfo.screenHeight * 0.15f
+    val bottomBarIconSize = windowInfo.screenHeight * 0.032f
+
     BottomAppBar(
         modifier = Modifier
-            .height(110.dp)
+            .height(bottomAppBarHeight)
             .background(Color.Black.copy(alpha = 0.6f)),
         containerColor = Color.Transparent,
         content = {
@@ -179,6 +160,10 @@ fun TransparentBottomBar(mainAppScreenViewModel: MainAppScreenViewModel, screenT
                     icon ->
                     IconButton(
                         onClick = {
+                            if(navController.currentDestination?.route != ScreenRouter.mainAppScreen){
+                                navController.popBackStack(navController.graph.startDestinationId, true)
+                                navController.navigate(ScreenRouter.mainAppScreen)
+                            }
                             mainAppScreenViewModel.selectedIcon = icon.key
                             screenToShow(icon.key) }
                     ) {
@@ -190,7 +175,7 @@ fun TransparentBottomBar(mainAppScreenViewModel: MainAppScreenViewModel, screenT
                         Image(
                             painter = painterResource(id = iconId),
                             contentDescription = "Home",
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(bottomBarIconSize),
                             colorFilter = ColorFilter.tint(Color.White)
                         )
                     }

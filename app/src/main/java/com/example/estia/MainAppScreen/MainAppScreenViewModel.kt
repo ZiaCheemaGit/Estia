@@ -27,6 +27,7 @@ import android.content.Intent
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.core.graphics.ColorUtils
 import com.example.estia.AudioFetcher
 import com.example.estia.MusicPlaybackService
 import com.example.estia.MusicServiceController
@@ -54,8 +55,7 @@ class MainAppScreenViewModel : ViewModel(){
 
     val isLoadingSongURL = mutableStateOf(false)
 
-    private val _dominantColor = MutableStateFlow(Color.Gray)
-    val dominantColor: StateFlow<Color> = _dominantColor
+    val dominantColor = mutableStateOf(Color.Gray)
 
     val isPaused = MusicServiceController.isPaused
 
@@ -141,11 +141,11 @@ class MainAppScreenViewModel : ViewModel(){
                         isLoadingSongURL.value = true
 
                         // Download image and cache it
-                        val imageUri = downloadAndCacheSingleImage(context, musicFile.coverArtUri!!)
-                        _nowPlaying.value = nowPlaying.value?.copy(coverArtUri = imageUri)
-
-                        // Get dominant color
-                        _dominantColor.value = getDominantColorFromUri(imageUri.toString())
+                        if(musicFile.coverArtUri != null){
+                            val imageUri = downloadAndCacheSingleImage(context, musicFile.coverArtUri!!)
+                            _nowPlaying.value = nowPlaying.value?.copy(coverArtUri = imageUri)
+                            dominantColor.value = getDominantColorFromUri(imageUri.toString())
+                        }
 
                         _nowPlaying.value = nowPlaying.value?.copy(source = "Search")
 
@@ -163,9 +163,10 @@ class MainAppScreenViewModel : ViewModel(){
                         // Set duration
                         _nowPlaying.value = nowPlaying.value?.copy(duration = duration)
 
+
                     }
                     else{
-                        _dominantColor.value = getDominantColorFromUri(nowPlaying.value?.coverArtUri.toString())
+                        dominantColor.value = getDominantColorFromUri(nowPlaying.value?.coverArtUri.toString())
                         if(!loading){
                             play()
                         }
@@ -210,7 +211,7 @@ class MainAppScreenViewModel : ViewModel(){
             tempMusicFile?.let {
                 setNowPlaying(MusicFile(
                     name = it.name ?: "",
-                    id = it.id,
+                    id = it.id.toString(),
                     artist = it.artist,
                     album = it.album,
                     duration = it.duration,
@@ -219,10 +220,10 @@ class MainAppScreenViewModel : ViewModel(){
                     source = it.source
                 ))
                 if (it.coverArtUri != null) {
-                    _dominantColor.value = getDominantColorFromUri(it.coverArtUri)
+                    dominantColor.value = getDominantColorFromUri(it.coverArtUri)
                 }
                 else{
-                    _dominantColor.value = Color(0xFFFFC0CB)
+                    dominantColor.value = Color(0xFFFFC0CB)
                 }
             }
         }
@@ -241,7 +242,7 @@ class MainAppScreenViewModel : ViewModel(){
                         filePath = it.filePath,
                         coverArtUri = it.coverArtUri,
                         source = it.source,
-                        color = colorToInt(_dominantColor.value)
+                        color = colorToInt(dominantColor.value)
                     )
                 )
             }
@@ -270,24 +271,19 @@ class MainAppScreenViewModel : ViewModel(){
     val unselectedBottomBarIcons = mapOf(
         "exploreIcon" to R.drawable.home_icon_unselected,
         "searchIcon" to R.drawable.search_icon_unselected,
-        "fileExplorerIcon" to R.drawable.file_explorer_icon_unselected,
         "accountIcon" to R.drawable.library_icon_unselected,
     )
 
     val selectedBottomBarIcons = mapOf(
         "exploreIcon" to R.drawable.home_icon_selected_icon,
         "searchIcon" to R.drawable.search_icon_selected,
-        "fileExplorerIcon" to R.drawable.file_explorer_icon_selected,
         "accountIcon" to R.drawable.library_icon_selected,
     )
 
     val screenMapping = mapOf(
-        "playListIcon" to "PlayListScreen",
         "exploreIcon" to "ExploreScreen",
         "searchIcon" to "SearchScreen",
-        "fileExplorerIcon" to "FileExplorerScreen",
         "accountIcon" to "AccountScreen",
-        "settingsIcon" to "SettingsScreen"
     )
 
     fun changeScreen(icon : String){
@@ -309,20 +305,6 @@ class MainAppScreenViewModel : ViewModel(){
                     val palette = Palette.from(it).generate()
                     var dominantColorInt = palette.getDominantColor(android.graphics.Color.BLACK)
 
-                    // Extract RGB
-                    val red = android.graphics.Color.red(dominantColorInt)
-                    val green = android.graphics.Color.green(dominantColorInt)
-                    val blue = android.graphics.Color.blue(dominantColorInt)
-
-                    // Check if it's too white (all components above 240, tweak threshold as needed)
-                    if (red > 200 && green > 200 && blue > 200) {
-                        // Reduce each component slightly
-                        val newRed = (red * 0.8).toInt().coerceAtMost(255)
-                        val newGreen = (green * 0.8).toInt().coerceAtMost(255)
-                        val newBlue = (blue * 0.8).toInt().coerceAtMost(255)
-                        dominantColorInt = android.graphics.Color.rgb(newRed, newGreen, newBlue)
-                    }
-
                     Color(dominantColorInt)
                 } ?: Color(0xFFFFC0CB) // Fallback
             } catch (e: Exception) {
@@ -330,7 +312,6 @@ class MainAppScreenViewModel : ViewModel(){
                 Color(0xFFFFC0CB)
             }
         }
-
     }
 
     fun formatDuration(durationMs: Long): String {
@@ -442,5 +423,11 @@ class MainAppScreenViewModel : ViewModel(){
             }
         }
 
+    }
+
+    fun isColorCloseToWhite(color: Color, threshold: Float = 0.4f): Boolean {
+        val argb = color.toArgb()
+        val luminance = ColorUtils.calculateLuminance(argb) // 0 = black, 1 = white
+        return luminance > threshold
     }
 }

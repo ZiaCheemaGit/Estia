@@ -1,6 +1,5 @@
 package com.example.estia.PlayerDrawer
 
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -21,7 +20,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -79,34 +77,35 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.navigation.NavController
-import com.example.estia.FileExplorerScreen.FileExplorerViewModel
+import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
+import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlaybackController
+import com.example.estia.WindowInfo
 import kotlin.Long
-import kotlin.String
 import kotlin.toString
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun playerDrawer(
     playListViewModel: PlayListScreenViewModel,
     mainAppScreenViewModel: MainAppScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
-    innerPadding: PaddingValues,
     navController: NavController,
-    fileExplorerViewModel: FileExplorerViewModel
+    fileExplorerViewModel: FileExplorerViewModel,
+    accountScreenViewModel: AccountScreenViewModel,
+    windowInfo: WindowInfo
 ) {
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
-    val dominantColor by mainAppScreenViewModel.dominantColor.collectAsState()
+    val dominantColor = mainAppScreenViewModel.dominantColor.value
 
     expandableDrawerViewModel.setContentResolverAndInitDB(LocalContext.current)
 
     val density = LocalDensity.current
 
     val totalHeight = LocalWindowInfo.current.containerSize.height.dp
-    val expandedHeight = totalHeight - innerPadding.calculateTopPadding() - innerPadding.calculateBottomPadding()
-    val collapsedHeight = expandedHeight * 0.035f
+    val expandedHeight = totalHeight
+    val collapsedHeight = expandedHeight * 0.03f
     expandableDrawerViewModel.setExpandedAndCollapsedHeight(
         expandedHeight,
         collapsedHeight
@@ -127,12 +126,20 @@ fun playerDrawer(
         expandableDrawerViewModel.handleDrag(delta)
     }
 
+    var startPadding = 10.dp
+    var endPadding = 10.dp
+    var bottomPadding = windowInfo.screenHeight * 0.15f
+    if(expandableDrawerViewModel.isExpanded){
+        startPadding = 0.dp
+        endPadding = 0.dp
+        bottomPadding = 0.dp
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(
-                top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding()
+                bottom = bottomPadding
             ),
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -140,7 +147,7 @@ fun playerDrawer(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(animatedHeightDp)
-                .padding(start = 10.dp, end = 10.dp)
+                .padding(start = startPadding, end = endPadding)
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = draggableState,
@@ -158,27 +165,9 @@ fun playerDrawer(
                 },
             colors = CardDefaults.cardColors(containerColor = Color.Black)
         ) {
-            var list : List<Color> = listOf(
-                dominantColor,
-                dominantColor
-            )
-            if (mainAppScreenViewModel.isExpandedNowPlaying) {
-                list = listOf(
-                    dominantColor,
-                    dominantColor.copy(alpha = 0.8f),
-                    dominantColor.copy(alpha = 0.6f),
-                    dominantColor.copy(alpha = 0.4f),
-                    dominantColor.copy(alpha = 0.2f),
-                )
-            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = list
-                        )
-                    ),
             ){
                 if (nowPlaying == null) {
 
@@ -206,12 +195,13 @@ fun playerDrawer(
                             mainAppScreenViewModel = mainAppScreenViewModel,
                             nowPlaying = nowPlaying,
                             dominantColor = dominantColor,
-                            list = list,
                             playListViewModel = playListViewModel,
                             playNext = PlaybackController.onNext!!,
                             playPrevious = PlaybackController.onPrevious!!,
                             navController = navController,
-                            fileExplorerViewModel = fileExplorerViewModel
+                            fileExplorerViewModel = fileExplorerViewModel,
+                            accountScreenViewModel = accountScreenViewModel,
+                            windowInfo = windowInfo
                         )
                     }
                     else{
@@ -221,6 +211,7 @@ fun playerDrawer(
                             mainAppScreenViewModel = mainAppScreenViewModel,
                             nowPlaying = nowPlaying,
                             dominantColor = dominantColor,
+                            windowInfo = windowInfo
                         )
                     }
                 }
@@ -234,14 +225,15 @@ fun playerDrawer(
 
 }
 
-
 @Composable
 fun SmallMusicPlayer(
     playNext: () -> Unit,
     playPrevious: () -> Unit,
     mainAppScreenViewModel: MainAppScreenViewModel,
     nowPlaying : MusicFile?,
-    dominantColor: Color){
+    dominantColor: Color,
+    windowInfo: WindowInfo,
+){
 
     var name = nowPlaying?.name!!
     var artist = nowPlaying.artist
@@ -263,6 +255,8 @@ fun SmallMusicPlayer(
 
     Row(
         modifier = Modifier
+            .fillMaxWidth()
+            .background(mainAppScreenViewModel.dominantColor.value)
             .offset { IntOffset(offsetX.toInt(), 0) }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -297,11 +291,24 @@ fun SmallMusicPlayer(
                 AsyncImage(
                     model = coverArt,
                     contentDescription = "Default Cover Art",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 5.dp, vertical = 5.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 5.dp, vertical = 5.dp)
+                            .clip(RoundedCornerShape(12.dp))
                 )
+//                val bitmap = remember(coverArt) {
+//                    BitmapFactory.decodeFile(File(coverArt).absolutePath)
+//                }
+//                bitmap?.let{
+//                    Image(
+//                        bitmap = bitmap.asImageBitmap(),
+//                        contentDescription = "Default Cover Art",
+//                        modifier = Modifier
+//                            .fillMaxSize()
+//                            .padding(horizontal = 5.dp, vertical = 5.dp)
+//                            .clip(RoundedCornerShape(12.dp))
+//                    )
+//                }
             }
         }
         Spacer(Modifier.width(10.dp))
@@ -328,13 +335,13 @@ fun SmallMusicPlayer(
                     .fillMaxWidth()
                     .height(16.dp)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Column(
             ){
                 Box(
                     modifier = Modifier
+                        .height(3.dp)
                         .fillMaxWidth()
-                        .height(3.dp) // Thin line here
                         .background(Color.Gray, shape = RoundedCornerShape(1.dp))
                 ) {
                     if(!mainAppScreenViewModel.isLoadingSongURL.value){
@@ -387,7 +394,6 @@ fun SmallMusicPlayer(
     }
 }
 
-
 @Composable
 fun LargeMusicPlayer(
     playNext: () -> Unit,
@@ -398,9 +404,18 @@ fun LargeMusicPlayer(
     fileExplorerViewModel: FileExplorerViewModel,
     nowPlaying: MusicFile?,
     dominantColor: Color,
-    list : List<Color>,
-    navController: NavController
+    navController: NavController,
+    accountScreenViewModel: AccountScreenViewModel,
+    windowInfo: WindowInfo
 ) {
+
+    val colorList = listOf(
+        dominantColor,
+        dominantColor.copy(alpha = 0.8f),
+        dominantColor.copy(alpha = 0.6f),
+        dominantColor.copy(alpha = 0.4f),
+        dominantColor.copy(alpha = 0.2f),
+    )
 
     var name = nowPlaying?.name ?: ""
     var artist = nowPlaying?.artist ?: ""
@@ -415,8 +430,6 @@ fun LargeMusicPlayer(
 
     var currentPosition = mainAppScreenViewModel.currentPosition.longValue
     var duration : Long = mainAppScreenViewModel.nowPlaying.value?.duration ?: 0L
-
-    val localStorageSongsList = fileExplorerViewModel.permanentAllSongsList.value
 
     val listState = rememberLazyListState()
 
@@ -458,28 +471,8 @@ fun LargeMusicPlayer(
 
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = list
-                )
-            ),
-        contentAlignment = Alignment.TopCenter
-    ){
-        Image(
-            painter = painterResource(id = R.drawable.thick_line_icon),
-            contentDescription = "Click and drag from this point",
-            modifier = Modifier
-                .size(25.dp),
-            colorFilter = ColorFilter.tint(Color.Gray)
-        )
-    }
-
-    Box(
-        modifier = Modifier
             .nestedScroll(nestedScrollConnection)
-            .padding(top = 40.dp)
-            .fillMaxWidth(),
+            .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         LazyColumn(
@@ -488,276 +481,282 @@ fun LargeMusicPlayer(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             item{
-                Box(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                ) {
-                    // Close icon aligned to start
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = colorList
+                            )
+                        )
+                        .padding(start = 25.dp)
+                ){
+                    Spacer(Modifier.height(50.dp))
                     Box(
                         modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .size(20.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                expandableDrawerViewModel.collapse()
-                            }
+                            .fillMaxWidth()
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.drop_down_icon),
-                            contentDescription = "Close Now Playing Drawer",
-                            modifier = Modifier.fillMaxSize(),
-                            colorFilter = ColorFilter.tint(Color.White)
-                        )
-                    }
-
-                    // Centered text
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Now Playing",
-                            fontSize = 16.sp,
-                            fontFamily = SpotifyBold,
-                            color = nameColor,
-                        )
-                        nowPlaying?.source?.let { source ->
-                            Text(
-                                text = "From $source",
-                                fontSize = 14.sp,
-                                fontFamily = SpotifyBold,
-                                color = nameColor.copy(alpha = 0.8f)
+                        // Close icon aligned to start
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) {
+                                    expandableDrawerViewModel.collapse()
+                                }
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.drop_down_icon),
+                                contentDescription = "Close Now Playing Drawer",
+                                modifier = Modifier.fillMaxSize(),
+                                colorFilter = ColorFilter.tint(Color.White)
                             )
                         }
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-            }
 
-            item {
-                Column(
-                    modifier = Modifier
-                        .height(360.dp)
-                        .width(360.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val coverArt = nowPlaying?.coverArtUri
-                    if (coverArt == null) {
-                        Image(
-                            painter = painterResource(id = R.drawable.music_icon_compressed),
-                            contentDescription = "Simple Music Icon",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        AsyncImage(
-                            model = coverArt,
-                            contentDescription = "Cover Art",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-            }
-
-            item {
-                Column(
-                    modifier = Modifier
-                        .width(360.dp),
-                ) {
-                    Row(){
+                        // Centered text
                         Column(
-                            modifier = Modifier
-                                .width(200.dp)
-                                .clipToBounds()
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                maxLines = 1,
-                                text = name,
-                                fontSize = 20.sp,
+                                text = "Now Playing",
+                                fontSize = 16.sp,
                                 fontFamily = SpotifyBold,
                                 color = nameColor,
                             )
+                            nowPlaying?.source?.let { source ->
+                                Text(
+                                    text = "From $source",
+                                    fontSize = 14.sp,
+                                    fontFamily = SpotifyBold,
+                                    color = nameColor.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
 
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                maxLines = 1,
-                                text = artist,
-                                fontSize = 16.sp,
-                                fontFamily = SpotifyBold,
-                                color = artistColor,
+                    Column(
+                        modifier = Modifier
+                            .height(360.dp)
+                            .width(360.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val coverArt = nowPlaying?.coverArtUri
+                        if (coverArt == null) {
+                            Image(
+                                painter = painterResource(id = R.drawable.music_icon_compressed),
+                                contentDescription = "Simple Music Icon",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            AsyncImage(
+                                model = coverArt,
+                                contentDescription = "Cover Art",
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
-
-                        // More Icons
                     }
-                }
-                Spacer(Modifier.height(10.dp))
-            }
+                    Spacer(Modifier.height(10.dp))
 
-            item {
-                if(mainAppScreenViewModel.isLoadingSongURL.value){
-                    LargeSeekBarPlaceholder()
-                }
-                else{
-                    SeekBar(
-                        currentPosition = currentPosition,
-                        duration = duration,
-                        onSeek = { newPosition ->
-                            mainAppScreenViewModel.setProgress(newPosition)
-                        },
-                        playNext = playNext
-                    )
-                }
-            }
+                    Column(
+                        modifier = Modifier
+                            .width(360.dp),
+                    ) {
+                        Row() {
+                            Column(
+                                modifier = Modifier
+                                    .width(200.dp)
+                                    .clipToBounds()
+                            ) {
+                                Text(
+                                    maxLines = 1,
+                                    text = name,
+                                    fontSize = 20.sp,
+                                    fontFamily = SpotifyBold,
+                                    color = nameColor,
+                                )
 
-            item {
-                Row(
-                    modifier = Modifier
-                        .width(360.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ){
-                    Text(
-                        text = mainAppScreenViewModel.formatDuration(currentPosition),
-                        fontSize = 12.sp,
-                        fontFamily = SpotifyBold,
-                        color = nameColor
-                    )
-                    Text(
-                        text = nowPlaying?.duration?.let {
-                            mainAppScreenViewModel.formatDuration(it) } ?: "0:00",
-                        fontSize = 12.sp,
-                        fontFamily = SpotifyBold,
-                        color = nameColor
-                    )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    maxLines = 1,
+                                    text = artist,
+                                    fontSize = 16.sp,
+                                    fontFamily = SpotifyBold,
+                                    color = artistColor,
+                                )
+                            }
+
+                            // More Icons
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+
+                    if (mainAppScreenViewModel.isLoadingSongURL.value) {
+                        LargeSeekBarPlaceholder()
+                    } else {
+                        SeekBar(
+                            currentPosition = currentPosition,
+                            duration = duration,
+                            onSeek = { newPosition ->
+                                mainAppScreenViewModel.setProgress(newPosition)
+                            },
+                            playNext = playNext
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .width(360.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = mainAppScreenViewModel.formatDuration(currentPosition),
+                            fontSize = 12.sp,
+                            fontFamily = SpotifyBold,
+                            color = nameColor
+                        )
+                        Text(
+                            text = nowPlaying?.duration?.let {
+                                mainAppScreenViewModel.formatDuration(it)
+                            } ?: "0:00",
+                            fontSize = 12.sp,
+                            fontFamily = SpotifyBold,
+                            color = nameColor
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .width(360.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val isPaused by mainAppScreenViewModel.isPaused.collectAsState()
+
+                        val iconId = if (isPaused) {
+                            R.drawable.play_icon_large
+                        } else {
+                            R.drawable.pause_icon_large
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                enabled = !mainAppScreenViewModel.isLoadingSongURL.value,
+                                onClick = {
+                                    expandableDrawerViewModel.libraryManagerDialogShown.value = true
+//                                mainAppScreenViewModel.downloadToDB()
+//                                fileExplorerViewModel.loadMusicFiles()
+                                }
+                            ) {
+                                if (!mainAppScreenViewModel.isLoadingSongURL.value) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.add_to_list_icon),
+                                        contentDescription = "Download Song Button",
+                                        modifier = Modifier.size(50.dp),
+                                        colorFilter = ColorFilter.tint(nameColor)
+                                    )
+                                } else {
+                                    Spacer(Modifier.size(30.dp))
+                                }
+                            }
+
+                            IconButton(
+                                modifier = Modifier.size(100.dp),
+                                onClick = {
+                                    val currentPositionMs =
+                                        mainAppScreenViewModel.currentPosition.longValue
+                                    if (currentPositionMs > 5000) {
+                                        // If more than 5 seconds in, just restart the current track
+                                        mainAppScreenViewModel.setProgress(0)
+                                    } else {
+                                        // Otherwise, go to the previous song from history
+                                        playPrevious()
+                                    }
+                                }
+
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.play_previous_icon),
+                                    contentDescription = "Pause Button",
+                                    modifier = Modifier.size(45.dp),
+                                    colorFilter = ColorFilter.tint(nameColor)
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (isPaused) {
+                                        mainAppScreenViewModel.resume()
+                                    } else {
+                                        mainAppScreenViewModel.pause()
+                                    }
+                                }
+                            ) {
+                                Image(
+                                    painter = painterResource(id = iconId),
+                                    contentDescription = "Pause Button",
+                                    modifier = Modifier.size(65.dp),
+                                    colorFilter = ColorFilter.tint(nameColor)
+                                )
+                            }
+                            IconButton(
+                                modifier = Modifier.size(100.dp),
+                                onClick = {
+                                    playNext()
+                                }
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.play_next_icon),
+                                    contentDescription = "Pause Button",
+                                    modifier = Modifier.size(45.dp),
+                                    colorFilter = ColorFilter.tint(nameColor)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    mainAppScreenViewModel.changeScreen("playListIcon")
+                                    expandableDrawerViewModel.collapse()
+                                }
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.play_queue_icon),
+                                    contentDescription = "Play Queue",
+                                    modifier = Modifier.size(35.dp),
+                                    colorFilter = ColorFilter.tint(nameColor)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(50.dp))
                 }
             }
 
             item {
                 Column(
                     modifier = Modifier
-                        .width(360.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .background(dominantColor.copy(alpha = 0.2f))
+                        .padding(start = 25.dp)
+                        .fillMaxWidth()
                 ){
-                    val isPaused by mainAppScreenViewModel.isPaused.collectAsState()
-
-                    val iconId = if (isPaused) {
-                        R.drawable.play_icon_large
-                    } else {
-                        R.drawable.pause_icon_large
-                    }
-                    var resouceID = R.drawable.download_icon
-                    if(localStorageSongsList.any { it.id == nowPlaying?.id }){
-                        resouceID = R.drawable.downloaded_icon
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ){
-                        IconButton(
-                            enabled = !mainAppScreenViewModel.isLoadingSongURL.value and
-                                    (resouceID != R.drawable.downloaded_icon),
-                            onClick = {
-                                mainAppScreenViewModel.downloadToDB()
-                                fileExplorerViewModel.loadMusicFiles()
-                        }
-                        ){
-                            Image(
-                                painter = painterResource(id = resouceID),
-                                contentDescription = "Download Song Button",
-                                modifier = Modifier.size(30.dp),
-                                colorFilter = ColorFilter.tint(nameColor)
-                            )
-                        }
-
-                        IconButton(
-                            modifier = Modifier.size(100.dp),
-                            onClick = {
-                                val currentPositionMs = mainAppScreenViewModel.currentPosition.longValue
-                                if (currentPositionMs > 5000) {
-                                    // If more than 5 seconds in, just restart the current track
-                                    mainAppScreenViewModel.setProgress(0)
-                                } else {
-                                    // Otherwise, go to the previous song from history
-                                    playPrevious()
-                                }
-                            }
-
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.play_previous_icon),
-                                contentDescription = "Pause Button",
-                                modifier = Modifier.size(45.dp),
-                                colorFilter = ColorFilter.tint(nameColor)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                if (isPaused) {
-                                    mainAppScreenViewModel.resume()
-                                } else {
-                                    mainAppScreenViewModel.pause()
-                                }
-                            }
-                        ) {
-                            Image(
-                                painter = painterResource(id = iconId),
-                                contentDescription = "Pause Button",
-                                modifier = Modifier.size(65.dp),
-                                colorFilter = ColorFilter.tint(nameColor)
-                            )
-                        }
-                        IconButton(
-                            modifier = Modifier.size(100.dp),
-                            onClick = {
-                                playNext()
-                            }
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.play_next_icon),
-                                contentDescription = "Pause Button",
-                                modifier = Modifier.size(45.dp),
-                                colorFilter = ColorFilter.tint(nameColor)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                mainAppScreenViewModel.changeScreen("playListIcon")
-                                expandableDrawerViewModel.collapse()
-                            }
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.play_queue_icon),
-                                contentDescription = "Play Queue",
-                                modifier = Modifier.size(35.dp),
-                                colorFilter = ColorFilter.tint(nameColor)
-                            )
-                        }
-                    }
+                    LyricsScreen(
+                        nameColor = nameColor,
+                        viewModel = expandableDrawerViewModel,
+                        nowPlaying = nowPlaying,
+                        mainAppScreenViewModel
+                    )
+                    Spacer(Modifier.height(50.dp))
                 }
-                Spacer(Modifier.height(50.dp))
-            }
-
-            item {
-                LyricsScreen(
-                    nameColor =  nameColor,
-                    viewModel = expandableDrawerViewModel,
-                    nowPlaying = nowPlaying
-                )
-                Spacer(Modifier.height(20.dp))
             }
         }
     }
 }
-
 
 @Composable
 fun SeekBar(
@@ -859,20 +858,24 @@ fun SeekBar(
 fun LyricsScreen(
     nameColor : Color,
     viewModel: PlayerDrawerViewModel,
-    nowPlaying: MusicFile?
+    nowPlaying: MusicFile?,
+    mainAppScreenViewModel: MainAppScreenViewModel
 ) {
     val lyrics by remember { derivedStateOf { viewModel.lyrics } }
     val isLoading by remember { derivedStateOf { viewModel.isLyricsLoading } }
     val error by remember { derivedStateOf { viewModel.lyricsError } }
+
+    var bgColor = mainAppScreenViewModel.dominantColor.value
+    if(mainAppScreenViewModel.dominantColor.value.alpha > 0.7){
+        bgColor = mainAppScreenViewModel.dominantColor.value.copy(alpha = 0.7f)
+    }
 
     Card(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .height(460.dp)
             .width(360.dp),
-        colors = CardDefaults.cardColors(
-            Color.Gray
-        )
+        colors = CardDefaults.cardColors(bgColor)
     ){
         Row{
             Text(
@@ -1055,10 +1058,3 @@ fun LargeSeekBarPlaceholder() {
         }
     }
 }
-
-
-
-
-
-
-

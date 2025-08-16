@@ -1,7 +1,6 @@
 package com.example.estia
 
 import android.content.Context
-import androidx.compose.ui.graphics.Color
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
@@ -12,9 +11,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
 import androidx.room.Upsert
-import com.example.estia.SearchScreen.DeezerTrack
 import kotlinx.coroutines.flow.Flow
 
 @Database(
@@ -47,15 +44,15 @@ abstract class MusicDataBase : RoomDatabase() {
 
 @Entity(tableName = "musicfile")
 data class MusicFile(
-    val name : String,
+    val name: String,
     @PrimaryKey(autoGenerate = false)
-    val id : Long,
-    val artist : String? = null,
-    val album : String? = null,
+    val id: String,
+    val artist: String? = null,
+    val album: String? = null,
     var duration: Long? = null,
-    var filePath : String? = null,
-    var coverArtUri : String? = null,
-    var source : String?,
+    var filePath: String? = null,
+    var coverArtUri: String? = null,
+    var source: String?,
     var streamableURL: String? = null
 )
 
@@ -64,7 +61,7 @@ data class PlayBackMusicFile(
     @PrimaryKey
     val rowId: Int = 0,
 
-    val id: Long,
+    val id: String,
     val name: String? = null,
     val artist: String? = null,
     val album: String? = null,
@@ -88,14 +85,14 @@ data class LyricsEntry(
 @Entity(tableName = "search_history")
 data class SearchHistoryEntry(
     @PrimaryKey(autoGenerate = false)
-    val id : Long,
-    val name : String,
-    val artist : String? = null,
-    val album : String? = null,
+    val id: String,
+    val name: String,
+    val artist: String? = null,
+    val album: String? = null,
     var duration: Long? = null,
-    var filePath : String? = null,
-    var coverArtUri : String? = null,
-    var source : String? = null,
+    var filePath: String? = null,
+    var coverArtUri: String? = null,
+    var source: String? = null,
     val timeStamp: Long = System.currentTimeMillis()
 )
 

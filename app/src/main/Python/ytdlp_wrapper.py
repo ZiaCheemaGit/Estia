@@ -1,45 +1,10 @@
+from ytmusicapi import YTMusic
 from yt_dlp import YoutubeDL
 import re
-import os
-from ytmusicapi import YTMusic
-
-##############
-##############
-##############
-
-
-def get_audio_info_by_video_id(video_id: str):
-    ydl_opts = {
-        'quiet': True,
-        'format': 'bestaudio/best',
-        'skip_download': True,
-    }
-
-    with YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(video_id, download=False)
-            return {
-                'url': info.get('url'),
-                'duration': info.get('duration'),
-                'title': info.get('title'),
-                'thumbnail': info.get('thumbnail'),
-                'artist': info.get('artist'),
-                'album': info.get('album', ''),
-                'id': info.get('id'),
-            }
-        except Exception as e:
-            return {'error': str(e)}
-
-
-
-##############
-##############
-##############
-
 
 def get_official_youtube_video_id(song_name: str, artist_name: str) -> str:
     ytmusic = YTMusic()
-    query = f"{song_name} {artist_name}"
+    query = f'{song_name} {artist_name.replace(",", " ")}'
     results = ytmusic.search(query, filter="songs")
 
     artist_candidates = [a.strip().lower() for a in artist_name.split(",")]
@@ -47,60 +12,41 @@ def get_official_youtube_video_id(song_name: str, artist_name: str) -> str:
     for result in results:
         result_artists = [a['name'].lower() for a in result['artists']]
         video_id = result.get('videoId')
+        print(f"given song = {song_name.lower()} && returned song = {result.get('title').lower()}")
+        print(f"given artists = {artist_candidates} && returned artists = {result_artists}")
         if any(candidate in result_artists for candidate in artist_candidates) and video_id:
-            return video_id
+                if song_name == re.sub(r'\s*\([^)]*\)', '', result["title"]):
+                    return video_id
 
-    return results[0].get('videoId')
+    return f2(song_name, artist_name)
 
-
-##############
-##############
-##############
-
-
-def get_song_audio_url(query, artist):
-
-    video_id = get_official_youtube_video_id(query, artist)
-    print(f"[DEBUG] Found videoId: {video_id}")
-    return get_audio_info_by_video_id(video_id)
-
-
-##############
-##############
-##############
-
-
-def get_playlist_song_info(playlist_url: str):
+def f2(song_name: str, artist_name: str) -> str | None:
+    artist_candidates = [a.strip().lower() for a in artist_name.split(",")]
+    query = f'{song_name} {artist_name}'
     ydl_opts = {
-        'quiet': True,
-        'extract_flat': True,  # Only get metadata, not full download
-        'skip_download': True,
+        "quiet": True,
+        "skip_download": True,
+        "extract_flat": "in_playlist",  # Only get metadata
+        "default_search": "ytsearch5",  # Search top 5 results
     }
-
-    result = []
 
     with YoutubeDL(ydl_opts) as ydl:
-        data = ydl.extract_info(playlist_url, download=False)
-        playlist_title = data.get("title", "Unknown Playlist")
+        ytdlp_result = ydl.extract_info(query, download=False)
 
-        if 'entries' in data:
-            for entry in data['entries']:
-                title = entry.get('title', 'Unknown Title')
-                artist_guess = entry.get('artist') or entry.get('uploader') or ''
-                print(f"yt music api artist = {artist_guess}, title = {title}")
-                video = get_song_audio_url(title, artist_guess)
-                result.append({
-                    'playlist_title': playlist_title,
-                    'title': video['title'],
-                    'artists': video['artist'],
-                    'url': video['url'],
-                    'duration': video['duration'],
-                    'thumbnail': video['thumbnail'],
-                    'album': video['album'],
-                    'id': video['id'],
-                })
+        if "entries" not in ytdlp_result:
+            return None
+        results = ytdlp_result["entries"]
 
-    print(f"[DEBUG] Returning list of Length: {len(result)}")
-    return {
-        'result':result
-    }
+        for result in results:
+            uploader = result['uploader'].lower()
+            video_id = result.get('videoId')
+            print(f"given song = {song_name} && returned song = {result.get('title')}")
+            print(f"given artists = {artist_candidates} && uploader = {uploader}")
+            for artist_candidate in artist_candidates:
+                if uploader == artist_candidate and video_id:
+                        return video_id
+                print(f"{artist_candidate} != {uploader}")
+
+
+        # Fallback: return the first result
+        return ytdlp_result["entries"][0].get("id") if ytdlp_result["entries"] else None

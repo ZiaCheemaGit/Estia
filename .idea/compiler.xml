@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel>
+      <module name="Estia.NewPipeExtractor" target="1.8" />
+      <module name="Estia.NewPipeExtractor.main" target="1.8" />
+      <module name="Estia.NewPipeExtractor.test" target="1.8" />
+      <module name="Estia.timeago-parser" target="1.8" />
+      <module name="Estia.timeago-parser.main" target="1.8" />
+      <module name="Estia.timeago-parser.test" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

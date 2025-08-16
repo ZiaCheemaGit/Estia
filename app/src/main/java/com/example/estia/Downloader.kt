@@ -13,8 +13,6 @@ import android.os.FileObserver
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.estia.MusicFile
-import com.example.estia.SearchScreen.DeezerApi
-import com.example.estia.SearchScreen.DeezerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,7 +36,7 @@ class AndroidDownloader(private val context: Context): Downloader{
     override fun downloadFile(musicFile: MusicFile): Long {
         val request = DownloadManager.Request(musicFile.streamableURL?.toUri())
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setTitle(musicFile.name.toString())
+            .setTitle("${musicFile.name} - ${musicFile.artist.toString()}")
             .setDestinationInExternalPublicDir(
                 Environment.DIRECTORY_MUSIC,
                 "Estia/${musicFile.id}" + ".estia"
@@ -55,7 +53,7 @@ object DownloaderObject {
         downloader = AndroidDownloader(context)
     }
 
-    suspend fun downloadFile(musicFile: MusicFile) {
+    fun downloadFile(musicFile: MusicFile) {
         val id = downloader.downloadFile(musicFile)
         downloadIdToFileMap[id] = musicFile
     }

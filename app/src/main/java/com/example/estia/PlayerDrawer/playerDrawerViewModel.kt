@@ -25,6 +25,8 @@ import java.util.Locale
 
 class PlayerDrawerViewModel : ViewModel() {
 
+    val libraryManagerDialogShown = mutableStateOf(false)
+
     //
     // Lyrics Logic
     //
@@ -143,21 +145,21 @@ class PlayerDrawerViewModel : ViewModel() {
         val cleanedArtist = artist.trim()
         val cleanedTitle = title.trim()
 
-//        // First try lyrics.ovh
-        try {
-            val ovhLyrics = fetchLyricsFromOvh(cleanedArtist, cleanedTitle)
-            if (ovhLyrics != null) return ovhLyrics.toString()
-        } catch (_: Exception) {
-
-        }
-//
-        // Then try Genius
+        // First try lyrics.ovh
 //        try {
-//            val geniusLyrics = getLyricsFromGenius(artist, title)
-//            if (geniusLyrics != null) return geniusLyrics.toString()
+//            val ovhLyrics = fetchLyricsFromOvh(cleanedArtist, cleanedTitle)
+//            if (ovhLyrics != null) return ovhLyrics.toString()
 //        } catch (_: Exception) {
 //
 //        }
+//
+        // Then try Genius
+        try {
+            val geniusLyrics = getLyricsFromGenius(artist, title)
+            if (geniusLyrics != null) return geniusLyrics.toString()
+        } catch (_: Exception) {
+
+        }
 
         return null
     }
@@ -442,6 +444,6 @@ class PlayerDrawerViewModel : ViewModel() {
         if (heightPx == collapsedHeightPx) heightPx = expandedHeightPx
     }
 
-    val isExpanded: Boolean
-        get() = heightPx >= (expandedHeightPx * 0.9f)
+    val isExpanded : Boolean
+        get() = heightPx >= expandedHeightPx * 0.9f
 }

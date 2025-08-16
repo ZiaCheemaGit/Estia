@@ -1,9 +1,10 @@
 package com.example.estia
 
 object ScreenRouter {
-    var loginScreen = "LoginScreen"
-    var mainAppScreen = "MainAppScreen"
-    var artistInfoScreen = "ArtistInfoScreen"
+    val loginScreen = "LoginScreen"
+    val mainAppScreen = "MainAppScreen"
+    val artistInfoScreen = "ArtistInfoScreen"
+    val localFilesScreen = "LocalFilesScreen"
 }
 
 
