@@ -1,4 +1,5 @@
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,6 +39,8 @@ import com.example.estia.AccountScreen.AccountScreenRouter
 import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.RenderFileExplorerScreen
+import com.example.estia.EstiaDownloadFile
+import com.example.estia.LikedSongFile
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
@@ -52,13 +55,15 @@ fun RenderAccountScreen(
     mainAppScreenViewModel : MainAppScreenViewModel,
     fileExplorerViewModel: FileExplorerViewModel,
     viewModel: AccountScreenViewModel,
-    navController: NavController
+    navController: NavController,
 ) {
     val accountScreenNavController = rememberNavController()
+
     NavHost(
         navController = accountScreenNavController,
         startDestination = AccountScreenRouter.mainScreen,
         builder = {
+
             composable(AccountScreenRouter.mainScreen) {
                 AccountScreenDisplay(
                     expandableDrawerViewModel,
@@ -79,6 +84,14 @@ fun RenderAccountScreen(
                     expandableDrawerViewModel,
                     accountScreenNavController,
                 )
+            }
+
+            composable(AccountScreenRouter.likedSongsScreen) {
+
+            }
+
+            composable(AccountScreenRouter.estiaDownloads) {
+
             }
         }
     )
@@ -105,7 +118,7 @@ fun AccountScreenDisplay(
     mainAppScreenViewModel : MainAppScreenViewModel,
     fileExplorerViewModel: FileExplorerViewModel,
     viewModel: AccountScreenViewModel,
-    navController: NavController
+    navController: NavController,
 ){
     val localFilesPlayList = fileExplorerViewModel.permanentAllSongsList.collectAsState().value
 
@@ -170,6 +183,9 @@ fun AccountScreenDisplay(
                     modifier = Modifier
                         .height(65.dp)
                         .fillMaxWidth()
+                        .clickable(){
+                            navController.navigate(AccountScreenRouter.likedSongsScreen)
+                        }
                 ){
                     AsyncImage(
                         model = R.drawable.liked_song_image,
@@ -190,8 +206,9 @@ fun AccountScreenDisplay(
                             fontSize = 16.sp,
                             color = Color.White
                         )
+                        val likedSongs = viewModel.likedSongs.collectAsState()
                         Text(
-                            text = "${viewModel.likedSongsPlaylist.value.size} Tracks",
+                            text = "${likedSongs.value.size} Tracks",
                             modifier = Modifier,
                             fontFamily = SpotifyBold,
                             fontSize = 13.sp,
@@ -242,7 +259,49 @@ fun AccountScreenDisplay(
                     }
                 }
             }
+
+            // Estia Downloads
+            item{
+                Row(
+                    modifier = Modifier
+                        .height(65.dp)
+                        .fillMaxWidth()
+                        .clickable(
+                            onClick = {
+                                navController.navigate(AccountScreenRouter.estiaDownloads)
+                            }
+                        )
+                ){
+                    AsyncImage(
+                        model = R.drawable.donwload_image_bg,
+                        contentDescription = "Estia Downloads Folder Image",
+                        modifier = Modifier
+                            .width(50.dp)
+                            .height(50.dp),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .width(200.dp)
+                    ){
+                        Text(
+                            text = "Estia Downloads",
+                            modifier = Modifier,
+                            fontFamily = SpotifyBold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                        val estiaDownloads = viewModel.estiaDownloads.collectAsState()
+                        Text(
+                            text = "${estiaDownloads.value.size} Tracks",
+                            modifier = Modifier,
+                            fontFamily = SpotifyBold,
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
         }
     }
 }
-

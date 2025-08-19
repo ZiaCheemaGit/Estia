@@ -1,9 +1,12 @@
 package com.example.estia.SearchScreen.DeepSearch
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,53 +16,258 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.R
+import com.example.estia.SearchScreen.MainScreen.AlbumItemComposable
+import com.example.estia.SearchScreen.MainScreen.ArtistItemComposable
+import com.example.estia.SearchScreen.MainScreen.SearchHistorySongItemComposable
 import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
+import com.example.estia.SearchScreen.MainScreen.SongItemComposable
 import com.example.estia.SearchScreen.MusicBrainzTrack
+import com.example.estia.SearchScreen.MusicBrainzTrackDetails
 import com.example.estia.SpotifyBold
 import kotlinx.coroutines.launch
+import java.nio.file.WatchEvent
 import kotlin.math.roundToInt
 
 @Composable
 fun DeepSearchScreenDisplay(
+    searchScreenViewModel: SearchScreenViewModel,
     deepSearchScreenViewModel: DeepSearchScreenViewModel,
     mainAppScreenViewModel : MainAppScreenViewModel,
     playListScreenViewModel: PlayListScreenViewModel,
+    navController: NavController
 ){
+    var dC = mainAppScreenViewModel.dominantColor.value
+    if(mainAppScreenViewModel.isColorCloseToWhite(dC)){
+        dC = dC.copy(alpha = 0.25f)
+    }
 
+    LazyColumn(Modifier.fillMaxSize()){
+        item {
+            Column(
+                Modifier
+                    .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            dC,dC,dC,dC,dC,dC,dC,
+                            Color.Black
+                        )
+                    )
+                )
+            ){
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(top = 60.dp),
+                    ) {
+                        IconButton(
+                            onClick = {
+                                navController.popBackStack()
+                            }
+                        ) {
+                            Image(
+                                modifier = Modifier.size(20.dp),
+                                painter = painterResource(id = R.drawable.back_icon),
+                                contentDescription = "go back button",
+                                colorFilter = ColorFilter.tint(Color.White)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            modifier = Modifier
+                                .padding(top = 70.dp, start = 20.dp),
+                            text = "Deep Search",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontFamily = SpotifyBold
+                        )
+                    }
+                }
+
+                // Song name Field
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        modifier = Modifier
+                            .width(90.dp)
+                            .padding(start = 20.dp),
+                        text = "Title",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontFamily = SpotifyBold
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    TextField(
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)),
+                        textStyle = TextStyle(
+                            fontSize = 16.sp,
+                            fontFamily = SpotifyBold,
+                            fontWeight = FontWeight.Thin,
+                            color = Color.Black
+                        ),
+                        value = deepSearchScreenViewModel.songName.value,
+                        onValueChange = { deepSearchScreenViewModel.songName.value = it },
+                        placeholder = { Text("Song Name") },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
+                            focusedPlaceholderColor = Color.Gray,
+                            unfocusedPlaceholderColor = Color.Gray
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(15.dp))
+
+                // Artist name Field
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        modifier = Modifier
+                            .width(90.dp)
+                            .padding(start = 20.dp),
+                        text = "Artist",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontFamily = SpotifyBold
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    TextField(
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)),
+                        textStyle = TextStyle(
+                            fontSize = 16.sp,                         // Main input text size
+                            fontFamily = SpotifyBold,        // Main input font
+                            fontWeight = FontWeight.Thin,
+                            color = Color.Black                       // Just in case
+                        ),
+                        value = deepSearchScreenViewModel.artistName.value,//searchQuery,
+                        onValueChange = { deepSearchScreenViewModel.artistName.value = it },
+                        placeholder = { Text("Artist Name") },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
+                            focusedPlaceholderColor = Color.Gray,
+                            unfocusedPlaceholderColor = Color.Gray
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(15.dp))
+
+                // Search Button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Card(
+                        modifier = Modifier.clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                            onClick = {
+                                deepSearchScreenViewModel.search()
+                            }
+                        ),
+                        colors = CardDefaults.cardColors(mainAppScreenViewModel.dominantColor.value)
+                    ) {
+                        Text(
+                            modifier = Modifier
+                                .padding(10.dp),
+                            text = "Search",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontFamily = SpotifyBold
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(5.dp))
+            }
+        }
+
+        items(deepSearchScreenViewModel.songSearchResults.value.size){ it ->
+            DeepSearchSongItemComposable(
+                mainAppScreenViewModel,
+                searchScreenViewModel,
+                deepSearchScreenViewModel.songSearchResults.value[it],
+                playListScreenViewModel
+            )
+        }
+        if(deepSearchScreenViewModel.isLoadingSongSearchResults.value){
+            item{ CircularProgressIndicator() }
+        }
+    }
 }
 
 @Composable
 fun DeepSearchSongItemComposable(
     mainAppScreenViewModel: MainAppScreenViewModel,
     searchScreenViewModel: SearchScreenViewModel,
-    musicFile: MusicBrainzTrack,
+    musicFileDetails: MusicBrainzTrackDetails,
     playListScreenViewModel: PlayListScreenViewModel
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
+
+    val musicFile = musicFileDetails.track
     var name = musicFile.title
     var artist : String = musicFile.artistCredit.joinToString(",") { it.name }
-    val coverArt = null//musicFile.album?.cover_medium
+    val coverArt = musicFileDetails.coverArt
     if (name.length > 45) name = name.take(45)
     if (artist.length > 45) artist = artist.take(45) + "..."
 
@@ -86,7 +294,7 @@ fun DeepSearchSongItemComposable(
                             album = null,//musicFile.album?.title,
                             duration = musicFile.length?.toLong(),
                             filePath = null,
-                            coverArtUri = null,//musicFile.album?.cover_xl,
+                            coverArtUri = coverArt,
                             source = "....",
                             id = musicFile.id
                         )
@@ -110,6 +318,7 @@ fun DeepSearchSongItemComposable(
 
     Box(
         modifier = Modifier
+            .padding(start = 10.dp, end = 10.dp)
             .background(Color.Black)
             .fillMaxWidth()
     ) {
@@ -154,7 +363,7 @@ fun DeepSearchSongItemComposable(
                                 album = null,//musicFile.album?.title,
                                 duration = musicFile.length?.toLong(),
                                 filePath = null,
-                                coverArtUri = null,//musicFile.album?.cover_xl,
+                                coverArtUri = coverArt,
                                 source = "....",
                                 id = musicFile.id
                             )
@@ -212,3 +421,4 @@ fun DeepSearchSongItemComposable(
         }
     }
 }
+

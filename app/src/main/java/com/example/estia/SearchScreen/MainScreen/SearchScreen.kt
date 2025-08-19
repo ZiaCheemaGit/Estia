@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,18 +35,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.WindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -52,11 +57,17 @@ import coil.compose.AsyncImage
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
+import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.R
+import com.example.estia.ScreenRouter
+import com.example.estia.SearchScreen.AlbumDisplayScreen.AlbumScreenDisplay
+import com.example.estia.SearchScreen.ArtistDisplayScreen.ArtistScreenDisplay
 import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenDisplay
 import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenViewModel
+import com.example.estia.SearchScreen.DeepSearch.DeepSearchSongItemComposable
 import com.example.estia.SearchScreen.DeezerAlbum
 import com.example.estia.SearchScreen.DeezerArtist
+import com.example.estia.SearchScreen.DeezerService
 import com.example.estia.SearchScreen.DeezerTrack
 import com.example.estia.SearchScreen.SearchScreenRouter
 import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
@@ -70,7 +81,9 @@ fun RenderSearchScreen(
     viewModel: SearchScreenViewModel,
     mainAppScreenViewModel : MainAppScreenViewModel,
     playListScreenViewModel: PlayListScreenViewModel,
-    deepSearcScreenViewModel: DeepSearchScreenViewModel
+    deepSearcScreenViewModel: DeepSearchScreenViewModel,
+    expandableDrawerViewModel: PlayerDrawerViewModel,
+    windowInfo: com.example.estia.WindowInfo
 ) {
     val searchScreenNavController = rememberNavController()
 
@@ -83,16 +96,42 @@ fun RenderSearchScreen(
                 innerPadding,
                 viewModel,
                 mainAppScreenViewModel,
-                playListScreenViewModel
+                playListScreenViewModel,
+                searchScreenNavController
             )
         }
 
         composable(SearchScreenRouter.deepSearchScreen) {
             DeepSearchScreenDisplay(
+                viewModel,
                 deepSearcScreenViewModel,
                 mainAppScreenViewModel,
-                playListScreenViewModel
+                playListScreenViewModel,
+                searchScreenNavController
             )
+        }
+
+        composable(SearchScreenRouter.albumScreen) {
+            AlbumScreenDisplay(
+                mainAppScreenViewModel,
+                searchScreenNavController,
+                searchScreenViewModel = viewModel,
+                playListScreenViewModel = playListScreenViewModel,
+                expandableDrawerViewModel = expandableDrawerViewModel,
+                windowInfo = windowInfo
+            )
+        }
+
+        composable(SearchScreenRouter.artistScreen) {
+            ArtistScreenDisplay(
+                mainAppScreenViewModel = mainAppScreenViewModel,
+                navController = searchScreenNavController,
+                searchScreenViewModel = viewModel,
+                playListScreenViewModel = playListScreenViewModel,
+                expandableDrawerViewModel = expandableDrawerViewModel,
+                windowInfo = windowInfo
+            )
+
         }
     }
 }
@@ -102,7 +141,8 @@ fun SearchScreenDisplay(
     innerPadding: PaddingValues,
     viewModel: SearchScreenViewModel,
     mainAppScreenViewModel : MainAppScreenViewModel,
-    playListScreenViewModel: PlayListScreenViewModel
+    playListScreenViewModel: PlayListScreenViewModel,
+    navController: NavController
 ){
     viewModel.loadSearchHistoryFromDB()
     val selectedfilter = viewModel.selectedFilter
@@ -314,7 +354,7 @@ fun SearchScreenDisplay(
                                     .height(70.dp)
                                     .clickable(
                                         onClick = {
-
+                                            navController.navigate(SearchScreenRouter.deepSearchScreen)
                                         }
                                     ),
                                 colors = CardDefaults.cardColors(mainAppScreenViewModel.dominantColor.value)
@@ -348,7 +388,8 @@ fun SearchScreenDisplay(
                     AlbumItemComposable(
                         mainAppScreenViewModel,
                         viewModel,
-                        album = viewModel.albumSearchResults.value[index]
+                        album = viewModel.albumSearchResults.value[index],
+                        navController
                     )
                 }
             }
@@ -359,7 +400,8 @@ fun SearchScreenDisplay(
                     ArtistItemComposable(
                         mainAppScreenViewModel,
                         viewModel,
-                        artist = viewModel.artistSearchResults.value[index]
+                        artist = viewModel.artistSearchResults.value[index],
+                        navController
                     )
                 }
             }
@@ -525,7 +567,7 @@ fun SongItemComposable(
                             maxLines = 1,
                             fontSize = 12.sp,
                             fontFamily = SpotifyBold,
-                            text = artist,
+                            text = artist + " - Song",
                             color = Color.Gray
                         )
                     }
@@ -689,8 +731,9 @@ fun AlbumItemComposable(
     mainAppScreenViewModel: MainAppScreenViewModel,
     searchScreenViewModel: SearchScreenViewModel,
     album: DeezerAlbum,
+    navController: NavController
 ) {
-    val scope = rememberCoroutineScope()
+    //val scope = rememberCoroutineScope()
     var name = album.title
     var artist : String = album.artist?.name ?: ""
     val coverArt = album.cover_medium
@@ -704,6 +747,13 @@ fun AlbumItemComposable(
     ) {
         Row(
             modifier = Modifier
+                .clickable(
+                    onClick = {
+                        mainAppScreenViewModel.selectedAlbum.value = album
+                        mainAppScreenViewModel.getSelectedAlbumTracks()
+                        navController.navigate(SearchScreenRouter.albumScreen)
+                    }
+                )
                 .fillMaxWidth()
                 .height(65.dp)
                 .background(Color.Black),
@@ -714,9 +764,6 @@ fun AlbumItemComposable(
                     .fillMaxWidth()
                     .padding(vertical = 2.dp)
                     .height(65.dp)
-                    .clickable(onClick = {
-
-                    })
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(
@@ -754,7 +801,7 @@ fun AlbumItemComposable(
                             maxLines = 1,
                             fontSize = 12.sp,
                             fontFamily = SpotifyBold,
-                            text = artist,
+                            text = artist + " - Album",
                             color = Color.Gray
                         )
                     }
@@ -770,6 +817,7 @@ fun ArtistItemComposable(
     mainAppScreenViewModel: MainAppScreenViewModel,
     searchScreenViewModel: SearchScreenViewModel,
     artist: DeezerArtist,
+    navController: NavController
 ) {
     var name = artist.name
     val coverArt = artist.picture
@@ -793,7 +841,9 @@ fun ArtistItemComposable(
                     .padding(vertical = 2.dp)
                     .height(65.dp)
                     .clickable(onClick = {
-
+                        mainAppScreenViewModel.selectedArtist.value = artist
+                        mainAppScreenViewModel.loadArtistData()
+                        navController.navigate(SearchScreenRouter.artistScreen)
                     })
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

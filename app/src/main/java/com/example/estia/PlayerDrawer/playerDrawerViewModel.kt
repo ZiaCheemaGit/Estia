@@ -17,6 +17,8 @@ import com.example.estia.MusicFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.net.HttpURLConnection
@@ -154,12 +156,12 @@ class PlayerDrawerViewModel : ViewModel() {
 //        }
 //
         // Then try Genius
-        try {
-            val geniusLyrics = getLyricsFromGenius(artist, title)
-            if (geniusLyrics != null) return geniusLyrics.toString()
-        } catch (_: Exception) {
-
-        }
+//        try {
+//            val geniusLyrics = getLyricsFromGenius(artist, title)
+//            if (geniusLyrics != null) return geniusLyrics.toString()
+//        } catch (_: Exception) {
+//
+//        }
 
         return null
     }
@@ -391,6 +393,44 @@ class PlayerDrawerViewModel : ViewModel() {
         }
 
         return null // If no variant worked
+    }
+    suspend fun getLyricsLRCLIB(
+        trackName: String,
+        artistName: String,
+        albumName: String,
+        durationSeconds: Int
+    ): String? = withContext(Dispatchers.IO) {
+        isLyricsLoading = true
+        try{
+            val client = OkHttpClient()
+
+            val url = "https://lrclib.net/api/get" +
+                    "?track_name=${trackName.replace(" ", "+")}" +
+                    "&artist_name=${artistName.replace(" ", "+")}" +
+                    "&album_name=${albumName.replace(" ", "+")}" +
+                    "&duration=$durationSeconds"
+
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string() ?: return@use null
+
+                val json = JSONObject(body)
+                lyrics = json.optString("syncedLyrics", json.optString("plainLyrics", null))
+                loadedLyricsSongName = trackName
+                loadedLyricsSongArtistName = artistName
+                return@use lyrics
+            }
+        } catch (e: Exception){
+            e.message
+        } finally{
+            isLyricsLoading = false
+        }.toString()
+
     }
 
 

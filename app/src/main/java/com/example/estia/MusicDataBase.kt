@@ -15,7 +15,13 @@ import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Database(
-    entities = [MusicFile::class, PlayBackMusicFile::class, LyricsEntry::class, SearchHistoryEntry::class],
+    entities = [MusicFile::class,
+        PlayBackMusicFile::class,
+        LyricsEntry::class,
+        SearchHistoryEntry::class,
+        LikedSongFile::class,
+        EstiaDownloadFile::class
+               ],
     version = 2
 )
 abstract class MusicDataBase : RoomDatabase() {
@@ -23,6 +29,8 @@ abstract class MusicDataBase : RoomDatabase() {
     abstract fun lyricsDao(): LyricsDao
     abstract fun playBackMusicFileDao(): PlayBackMusicFileDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun estiaDownloadsDao(): EstiaDownloadsDao
+    abstract fun likedSongsDao(): LikedSongsDao
 
     companion object {
         @Volatile
@@ -96,6 +104,30 @@ data class SearchHistoryEntry(
     val timeStamp: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "likedSong")
+data class LikedSongFile(
+    val name: String,
+    @PrimaryKey(autoGenerate = false)
+    val id: String,
+    val artist: String,
+    val album: String,
+    var duration: Long,
+    var coverArtUri: String? = null,
+    var source: String = "Liked Songs",
+)
+
+@Entity(tableName = "estiaDownload")
+data class EstiaDownloadFile(
+    val name: String,
+    @PrimaryKey(autoGenerate = false)
+    val id: String,
+    val artist: String,
+    val album: String,
+    var duration: Long,
+    var filePath: String,
+    var coverArtUri: String? = null,
+    var source: String = "Estia Downloads",
+)
 
 @Dao
 interface LyricsDao {
@@ -128,6 +160,42 @@ interface MusicFileDao {
     suspend fun deleteMusicFile(musicFile: MusicFile)
 
     @Query("DELETE FROM MusicFile")
+    suspend fun deleteAll()
+}
+
+@Dao
+interface LikedSongsDao {
+    @Query("SELECT * FROM likedSong ORDER BY name COLLATE NOCASE ASC")
+    fun getAllMusic(): List<LikedSongFile>
+
+    @Upsert
+    suspend fun upsertAll(musicFiles: List<LikedSongFile>)
+
+    @Upsert
+    suspend fun upsertMusicFile(musicFile: LikedSongFile)
+
+    @Delete
+    suspend fun deleteMusicFile(musicFile: LikedSongFile)
+
+    @Query("DELETE FROM likedSong")
+    suspend fun deleteAll()
+}
+
+@Dao
+interface EstiaDownloadsDao {
+    @Query("SELECT * FROM estiaDownload ORDER BY name COLLATE NOCASE ASC")
+    fun getAllMusic(): List<EstiaDownloadFile>
+
+    @Upsert
+    suspend fun upsertAll(musicFiles: List<EstiaDownloadFile>)
+
+    @Upsert
+    suspend fun upsertMusicFile(musicFile: EstiaDownloadFile)
+
+    @Delete
+    suspend fun deleteMusicFile(musicFile: EstiaDownloadFile)
+
+    @Query("DELETE FROM estiaDownload")
     suspend fun deleteAll()
 }
 

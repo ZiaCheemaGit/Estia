@@ -244,10 +244,13 @@ fun SmallMusicPlayer(
 
     var currentPosition = mainAppScreenViewModel.currentPosition.value
     var duration = mainAppScreenViewModel.nowPlaying.value?.duration
-    var progress = (currentPosition.toFloat() / duration?.toFloat()!!) * 200
 
-    if(currentPosition >= duration){
-        playNext()
+    var progress = 0f
+    if(duration != null){
+        progress = (currentPosition.toFloat() / duration.toFloat()) * 200
+        if(currentPosition >= duration.toLong()){
+            playNext()
+        }
     }
 
     val threshold = 100f
@@ -958,8 +961,6 @@ fun LyricsScreen(
             }
         }
     }
-
-
 
     LaunchedEffect(nowPlaying) {
         viewModel.fetchLyrics(

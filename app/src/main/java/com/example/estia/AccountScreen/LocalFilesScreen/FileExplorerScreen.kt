@@ -407,7 +407,8 @@ fun MusicListView(
 
             // Bottom Space
             item{
-                Spacer(Modifier.height(expandableDrawerViewModel.collapsedHeightDp))
+                Spacer(Modifier.height(
+                    expandableDrawerViewModel.collapsedHeightDp + windowInfo.screenHeight * 0.15f))
             }
         }
 

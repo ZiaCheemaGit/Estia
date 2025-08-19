@@ -32,13 +32,16 @@ import androidx.compose.material.IconButton
 import androidx.compose.ui.graphics.ColorFilter
 import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
+import com.example.estia.EstiaDownloadFile
 import com.example.estia.HomeScreen.HomeScreenViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.SearchScreen.MainScreen.RenderSearchScreen
 import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
 import com.example.estia.HomeScreen.RenderExploreScreen
+import com.example.estia.LikedSongFile
 import com.example.estia.ScreenRouter
+import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenViewModel
 import com.example.estia.WindowInfo
 
 @Composable
@@ -49,9 +52,9 @@ fun MainAppScreen(
     expandableDrawerViewModel: PlayerDrawerViewModel,
     playListScreenViewModel : PlayListScreenViewModel,
     accountScreenViewModel: AccountScreenViewModel,
-    windowInfo: WindowInfo
+    windowInfo: WindowInfo,
+    deepSearchScreenViewModel: DeepSearchScreenViewModel,
 ) {
-
     RequestMediaPlaybackPermission()
 
     val searchScreenViewModel : SearchScreenViewModel = viewModel()
@@ -80,17 +83,20 @@ fun MainAppScreen(
 
                 when (mainAppScreenViewModel.currentScreen) {
 
-                    "ExploreScreen" -> RenderExploreScreen(
-                        homeScreenViewModel,
-                        mainAppScreenViewModel,
-                        innerPadding
-                    )
+//                    "ExploreScreen" -> RenderExploreScreen(
+//                        homeScreenViewModel,
+//                        mainAppScreenViewModel,
+//                        innerPadding
+//                    )
 
                     "SearchScreen" -> RenderSearchScreen(
                         innerPadding,
                         searchScreenViewModel,
                         mainAppScreenViewModel = mainAppScreenViewModel,
-                        playListScreenViewModel
+                        playListScreenViewModel,
+                        deepSearcScreenViewModel = deepSearchScreenViewModel,
+                        expandableDrawerViewModel = expandableDrawerViewModel,
+                        windowInfo = windowInfo
                     )
 
                     "AccountScreen" -> RenderAccountScreen(

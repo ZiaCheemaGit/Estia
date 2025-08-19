@@ -31,6 +31,11 @@ import androidx.core.graphics.ColorUtils
 import com.example.estia.AudioFetcher
 import com.example.estia.MusicPlaybackService
 import com.example.estia.MusicServiceController
+import com.example.estia.SearchScreen.ArtistFullData
+import com.example.estia.SearchScreen.DeezerAlbum
+import com.example.estia.SearchScreen.DeezerAlbumDetails
+import com.example.estia.SearchScreen.DeezerArtist
+import com.example.estia.SearchScreen.DeezerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -45,6 +50,47 @@ import java.io.FileOutputStream
 import kotlin.coroutines.cancellation.CancellationException
 
 class MainAppScreenViewModel : ViewModel(){
+
+    // Nested nav screens Logic
+    val selectedAlbum = mutableStateOf<DeezerAlbum?>(null)
+    val selectedAlbumDetails = mutableStateOf<DeezerAlbumDetails?>(null)
+    val isLoadingSelectedAlbumDetails = mutableStateOf(false)
+
+    val selectedArtist = mutableStateOf<DeezerArtist?>(null)
+    val selectedArtistDetails = mutableStateOf<ArtistFullData?>(null)
+    val isLoadingSelectedArtistDetails = mutableStateOf(false)
+
+    fun getSelectedAlbumTracks(){
+        viewModelScope.launch {
+            isLoadingSelectedAlbumDetails.value = true
+            try {
+                if(selectedAlbum.value?.id != null){
+                    selectedAlbumDetails.value = DeezerService.api.getAlbumDetails(selectedAlbum.value?.id!!)
+                }
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+            }
+            finally {
+                isLoadingSelectedAlbumDetails.value = false
+            }
+        }
+    }
+
+    fun loadArtistData() {
+        viewModelScope.launch{
+            try {
+                isLoadingSelectedArtistDetails.value = true
+                selectedArtistDetails.value =
+                    DeezerService.getArtistFullData(selectedArtist.value?.id ?: 0)
+                // Update UI state with artistData
+            } catch (e: Exception) {
+                // Handle error
+            } finally {
+                isLoadingSelectedArtistDetails.value = false
+            }
+        }
+    }
 
     //
     // Now Playing Logic
@@ -264,24 +310,24 @@ class MainAppScreenViewModel : ViewModel(){
 
     var isExpandedNowPlaying by mutableStateOf(false)
 
-    var currentScreen by mutableStateOf("ExploreScreen")
-    var selectedIcon by mutableStateOf("exploreIcon")
+    var currentScreen by mutableStateOf("SearchScreen")
+    var selectedIcon by mutableStateOf("searchIcon")
 
     // Login options and their mapping with their icons in res/drawable/
     val unselectedBottomBarIcons = mapOf(
-        "exploreIcon" to R.drawable.home_icon_unselected,
+        //"exploreIcon" to R.drawable.home_icon_unselected,
         "searchIcon" to R.drawable.search_icon_unselected,
         "accountIcon" to R.drawable.library_icon_unselected,
     )
 
     val selectedBottomBarIcons = mapOf(
-        "exploreIcon" to R.drawable.home_icon_selected_icon,
+        //"exploreIcon" to R.drawable.home_icon_selected_icon,
         "searchIcon" to R.drawable.search_icon_selected,
         "accountIcon" to R.drawable.library_icon_selected,
     )
 
     val screenMapping = mapOf(
-        "exploreIcon" to "ExploreScreen",
+        //"exploreIcon" to "ExploreScreen",
         "searchIcon" to "SearchScreen",
         "accountIcon" to "AccountScreen",
     )
