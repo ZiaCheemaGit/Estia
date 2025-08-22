@@ -95,43 +95,11 @@ class FileExplorerViewModel : ViewModel() {
     private val _isLoading = mutableStateOf(true)
     val isLoading = _isLoading
 
-    fun isValidUrl(url: String): Boolean {
-        return Patterns.WEB_URL.matcher(url).matches()
-    }
-    fun isValidFilePath(path: String): Boolean {
-        return try {
-            val file = File(path)
-            file.exists() && file.isFile
-        } catch (e: Exception) {
-            false
-        }
-    }
-    fun getEstiaFileAbsolutePath(fileName: String): String {
-        val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-        val estiaDir = File(musicDir, "Estia")
-        return File(estiaDir, fileName).absolutePath
-    }
-    private fun isStreamUrlValid(urlString: String): Boolean {
-        return try {
-            val url = URL(urlString)
-            with(url.openConnection() as HttpURLConnection) {
-                requestMethod = "HEAD"
-                connectTimeout = 3000
-                readTimeout = 3000
-                connect()
-                responseCode == HttpURLConnection.HTTP_OK
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
-
     fun loadMusicFiles() = viewModelScope.launch(Dispatchers.IO) {
 
         var existingSongs = db.musicDao().getAllMusic().firstOrNull()
         if (!existingSongs.isNullOrEmpty()) {
             permanentAllSongsList.value = existingSongs
-            checkAndFixDownloads()
             _musicList.value = existingSongs
             _isLoading.value = false
             return@launch
@@ -202,26 +170,6 @@ class FileExplorerViewModel : ViewModel() {
                     _isLoading.value = false
                     return@launch
                 }
-            }
-        }
-    }
-
-    suspend fun checkAndFixDownloads(){
-        for (song in permanentAllSongsList.value){
-            if (isValidUrl(song.streamableURL.toString()) and !isValidFilePath(song.filePath.toString()))
-            {
-                if (!isStreamUrlValid(song.streamableURL.toString())){
-                    song.streamableURL = null
-                    song.streamableURL = AudioFetcher().fetchAudioStreamUrl_newpipe(song.artist!!, song.name)
-                    while(song.streamableURL == null){
-                        delay(1)
-                    }
-                }
-                DownloaderObject.downloadFile(song)
-                db.musicDao().deleteMusicFile(song)
-                song.filePath = getEstiaFileAbsolutePath(song.id.toString() + ".estia")
-                song.source = "Local Storage"
-                db.musicDao().upsertMusicFile(song)
             }
         }
     }

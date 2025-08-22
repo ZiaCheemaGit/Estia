@@ -2,6 +2,12 @@ from ytmusicapi import YTMusic
 from yt_dlp import YoutubeDL
 import re
 
+def yt_music_search(query: str):
+    print("Starting......yt music search")
+    ytmusic = YTMusic()
+    results = ytmusic.search(query, filter="songs")
+    return results
+
 def get_official_youtube_video_id(song_name: str, artist_name: str) -> str:
     ytmusic = YTMusic()
     query = f'{song_name} {artist_name.replace(",", " ")}'

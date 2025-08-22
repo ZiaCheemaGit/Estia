@@ -1,29 +1,12 @@
 package com.example.estia.downloader
 
+
 import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.os.Environment
-import android.content.Intent
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.media.MediaMuxer
-import android.os.FileObserver
-import android.util.Log
 import androidx.core.net.toUri
 import com.example.estia.MusicFile
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import android.content.Context
-import com.example.estia.AudioFetcher
-import kotlinx.coroutines.Delay
-import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
+import androidx.compose.runtime.mutableStateOf
 
 interface Downloader{
     fun downloadFile(musicFile: MusicFile): Long
@@ -48,14 +31,73 @@ class AndroidDownloader(private val context: Context): Downloader{
 object DownloaderObject {
     val downloadIdToFileMap = mutableMapOf<Long, MusicFile>()
     lateinit var downloader: Downloader
+    val downloaderIsActive = mutableStateOf(false)
 
     fun initialize(context: Context) {
         downloader = AndroidDownloader(context)
     }
 
-    fun downloadFile(musicFile: MusicFile) {
+    fun downloadFile(context: Context, musicFile: MusicFile) : Long{
         val id = downloader.downloadFile(musicFile)
         downloadIdToFileMap[id] = musicFile
+        updateDownloaderIsActive(context)
+        return id
+    }
+
+    fun isDownloadCompleted(context: Context, downloadId: Long): Boolean {
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        val cursor = downloadManager.query(query)
+
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                return status == DownloadManager.STATUS_SUCCESSFUL
+            }
+        }
+        return false
+    }
+
+    fun getDownloadProgress(context: Context, downloadId: Long): Int {
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        val cursor = downloadManager.query(query)
+
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val bytesDownloaded = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                val totalBytes = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+
+                if (totalBytes > 0) {
+                    return ((bytesDownloaded * 100L) / totalBytes).toInt()
+                }
+            }
+        }
+        return -1 // -1 means unknown/not found
+    }
+
+    fun updateDownloaderIsActive(context: Context) {
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query()
+        val cursor = downloadManager.query(query)
+
+        var active = false
+        cursor?.use {
+            val idIndex = it.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
+            val statusIndex = it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+
+            while (it.moveToNext()) {
+                val id = it.getLong(idIndex)
+                val status = it.getInt(statusIndex)
+
+                if ((status == DownloadManager.STATUS_RUNNING || status == DownloadManager.STATUS_PENDING)
+                    && downloadIdToFileMap.containsKey(id)
+                ) {
+                    active = true
+                    break
+                }
+            }
+        }
+        downloaderIsActive.value = active
     }
 }
-

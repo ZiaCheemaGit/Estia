@@ -44,6 +44,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.schabi.newpipe.extractor.timeago.patterns.no
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -208,8 +209,45 @@ class MainAppScreenViewModel : ViewModel(){
                         val duration = getMetadataDuration(url.toString())
                         // Set duration
                         _nowPlaying.value = nowPlaying.value?.copy(duration = duration)
+                    }
+                    else if(musicFile.source == "Liked Songs"){
+                        isLoadingSongURL.value = true
+                        dominantColor.value = getDominantColorFromUri(musicFile.coverArtUri.toString())
 
+                        // Fetch audio stream URL
+                        val url = audioFetcher.fetchAudioStreamUrl_newpipe(
+                            nowPlaying.value?.artist.orEmpty(),
+                            nowPlaying.value?.name.orEmpty()
+                        )
+                        _nowPlaying.value = nowPlaying.value?.copy(
+                            filePath = url.toString(), streamableURL = url.toString())
+                        play()
+                        isLoadingSongURL.value = false
+                        val duration = getMetadataDuration(url.toString())
+                        // Set duration
+                        _nowPlaying.value = nowPlaying.value?.copy(duration = duration)
+                    }
+                    else if(musicFile.source == "YTMusicSearch"){
+                        isLoadingSongURL.value = true
 
+                        // Download image and cache it
+                        if(musicFile.coverArtUri != null){
+                            val imageUri = downloadAndCacheSingleImage(context, musicFile.coverArtUri!!)
+                            _nowPlaying.value = nowPlaying.value?.copy(coverArtUri = imageUri)
+                            dominantColor.value = getDominantColorFromUri(imageUri.toString())
+                        }
+
+                        _nowPlaying.value = nowPlaying.value?.copy(source = "Search")
+
+                        // Fetch audio stream URL
+                        val url = audioFetcher.fetchAudioStreamUrl_newpipe_by_VideoID(
+                            nowPlaying.value?.id.toString()
+                        )
+
+                        _nowPlaying.value = nowPlaying.value?.copy(
+                            filePath = url.toString(), streamableURL = url.toString())
+                        play()
+                        isLoadingSongURL.value = false
                     }
                     else{
                         dominantColor.value = getDominantColorFromUri(nowPlaying.value?.coverArtUri.toString())
@@ -429,7 +467,7 @@ class MainAppScreenViewModel : ViewModel(){
 
         return downloadImageJob?.await()
     }
-    fun copyImageToInternalStorage(context: Context, sourcePath: String): String? {
+    fun copyImageToInternalStorage(context: Context, sourcePath: String, id: String): String? {
         return try {
             val sourceFile = File(sourcePath)
             if (!sourceFile.exists()) return null
@@ -440,6 +478,10 @@ class MainAppScreenViewModel : ViewModel(){
 
             // Define the destination file
             val destFile = File(destDir, sourceFile.name)
+
+            if (destFile.exists()) {
+                return destFile.absolutePath
+            }
 
             // Copy file
             FileInputStream(sourceFile).use { input ->
@@ -454,21 +496,6 @@ class MainAppScreenViewModel : ViewModel(){
             e.printStackTrace()
             null
         }
-    }
-
-    fun downloadToDB(){
-        if(nowPlaying.value != null && nowPlaying.value?.filePath != null)
-        {
-            viewModelScope.launch{
-                nowPlaying.value!!.filePath = nowPlaying.value!!.id.toString() + ".estia"
-                nowPlaying.value?.coverArtUri = copyImageToInternalStorage(
-                    context,
-                    nowPlaying.value?.coverArtUri!!
-                )
-                db.musicDao().upsertMusicFile(nowPlaying.value!!)
-            }
-        }
-
     }
 
     fun isColorCloseToWhite(color: Color, threshold: Float = 0.4f): Boolean {

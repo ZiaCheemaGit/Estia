@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
@@ -61,6 +62,7 @@ import com.example.estia.SearchScreen.MainScreen.SongItemComposable
 import com.example.estia.SearchScreen.MusicBrainzTrack
 import com.example.estia.SearchScreen.MusicBrainzTrackDetails
 import com.example.estia.SpotifyBold
+import com.example.estia.YTMusicSong
 import kotlinx.coroutines.launch
 import java.nio.file.WatchEvent
 import kotlin.math.roundToInt
@@ -245,7 +247,8 @@ fun DeepSearchScreenDisplay(
                 mainAppScreenViewModel,
                 searchScreenViewModel,
                 deepSearchScreenViewModel.songSearchResults.value[it],
-                playListScreenViewModel
+                playListScreenViewModel,
+                deepSearchScreenViewModel
             )
         }
         if(deepSearchScreenViewModel.isLoadingSongSearchResults.value){
@@ -258,16 +261,16 @@ fun DeepSearchScreenDisplay(
 fun DeepSearchSongItemComposable(
     mainAppScreenViewModel: MainAppScreenViewModel,
     searchScreenViewModel: SearchScreenViewModel,
-    musicFileDetails: MusicBrainzTrackDetails,
-    playListScreenViewModel: PlayListScreenViewModel
+    ytMF: YTMusicSong,
+    playListScreenViewModel: PlayListScreenViewModel,
+    deepSearchScreenViewModel: DeepSearchScreenViewModel
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
 
-    val musicFile = musicFileDetails.track
-    var name = musicFile.title
-    var artist : String = musicFile.artistCredit.joinToString(",") { it.name }
-    val coverArt = musicFileDetails.coverArt
+    var name = ytMF.title
+    var artist : String = ytMF.artists.joinToString(",")
+    val coverArt = ytMF.thumbnailUrl
     if (name.length > 45) name = name.take(45)
     if (artist.length > 45) artist = artist.take(45) + "..."
 
@@ -283,30 +286,30 @@ fun DeepSearchSongItemComposable(
                 scope.launch { swipeOffset.snapTo(newOffset) }
             },
             onDragEnd = {
-                scope.launch {
-                    if (swipeOffset.value >= dragThreshold) {
-                        swipeOffset.animateTo(maxOffset)
-
-                        // add song to playList
-                        val localMusic = MusicFile(
-                            name = musicFile.title,
-                            artist = musicFile.artistCredit.joinToString(", "){it.name},//searchScreenViewModel.getAllArtists(musicFile.id.toString()),
-                            album = null,//musicFile.album?.title,
-                            duration = musicFile.length?.toLong(),
-                            filePath = null,
-                            coverArtUri = coverArt,
-                            source = "....",
-                            id = musicFile.id
-                        )
-
-                        searchScreenViewModel.addToHistory(localMusic)
-                        playListScreenViewModel.enqueueInPlayQueue(localMusic)
-
-                        swipeOffset.animateTo(0f) // snap back
-                    } else {
-                        swipeOffset.animateTo(0f) // also snap back if not enough
-                    }
-                }
+//                scope.launch {
+//                    if (swipeOffset.value >= dragThreshold) {
+//                        swipeOffset.animateTo(maxOffset)
+//
+//                        // add song to playList
+//                        val localMusic = MusicFile(
+//                            name = ytMF.title,
+//                            artist = musicFile.artistCredit.joinToString(", "){it.name},//searchScreenViewModel.getAllArtists(musicFile.id.toString()),
+//                            album = null,//musicFile.album?.title,
+//                            duration = musicFile.length?.toLong(),
+//                            filePath = null,
+//                            coverArtUri = coverArt,
+//                            source = "....",
+//                            id = ytMF.videoId
+//                        )
+//
+//                        searchScreenViewModel.addToHistory(localMusic)
+//                        playListScreenViewModel.enqueueInPlayQueue(localMusic)
+//
+//                        swipeOffset.animateTo(0f) // snap back
+//                    } else {
+//                        swipeOffset.animateTo(0f) // also snap back if not enough
+//                    }
+//                }
             },
             onDragCancel = {
                 scope.launch {
@@ -356,16 +359,17 @@ fun DeepSearchSongItemComposable(
                     .height(65.dp)
                     .clickable(onClick = {
                         scope.launch {
+                            val d = deepSearchScreenViewModel.durationToMillis(ytMF.duration)
 
                             val localMusic = MusicFile(
-                                name = musicFile.title,
-                                artist = musicFile.artistCredit.joinToString(", ") { it.name },//searchScreenViewModel.getAllArtists(musicFile.id.toString()),
-                                album = null,//musicFile.album?.title,
-                                duration = musicFile.length?.toLong(),
+                                name = ytMF.title,
+                                artist = ytMF.artists.joinToString(", "),
+                                album = ytMF.album,
+                                duration = d,
                                 filePath = null,
                                 coverArtUri = coverArt,
-                                source = "....",
-                                id = musicFile.id
+                                source = "YTMusicSearch",
+                                id = ytMF.videoId
                             )
 
                             keyboardController?.hide()

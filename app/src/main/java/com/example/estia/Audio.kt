@@ -33,6 +33,66 @@ class AudioFetcher {
         }
     }
 
+    suspend fun searchYTMusic(query: String): List<YTMusicSong> = withContext(Dispatchers.IO) {
+        try {
+            val module = pyModule ?: return@withContext emptyList()
+
+            val result: PyObject = module.callAttr("yt_music_search", query)
+
+            // Convert Python list → Kotlin list of YTMusicSong
+            result.asList().map { item ->
+                val map = item.asMap().mapKeys { it.key.toString() }
+
+                val title = map["title"]?.toString().orEmpty()
+                val videoId = map["videoId"]?.toString().orEmpty()
+                val duration = map["duration"]?.toString()
+
+                val album = when (val albumObj = map["album"]) {
+                    is PyObject -> {
+                        val albumMap = albumObj.asMap().mapKeys { it.key.toString() }
+                        albumMap["name"]?.toString()
+                    }
+                    is Map<*, *> -> albumObj["name"]?.toString()
+                    else -> null
+                }
+
+                val artists = (map["artists"] as? PyObject)
+                    ?.asList()
+                    ?.mapNotNull { artistObj ->
+                        val artistMap = (artistObj as PyObject).asMap().mapKeys { it.key.toString() }
+                        artistMap["name"]?.toString()
+                    }
+                    ?: emptyList()
+
+                val thumbUrl = (map["thumbnails"] as? PyObject)
+                    ?.asList()
+                    ?.mapNotNull { thumbObj ->
+                        val thumbMap = (thumbObj as PyObject).asMap().mapKeys { it.key.toString() }
+                        val url = thumbMap["url"]?.toString()
+                        val width = thumbMap["width"]?.toString()?.toIntOrNull() ?: 0
+                        val height = thumbMap["height"]?.toString()?.toIntOrNull() ?: 0
+                        if (url != null) Triple(url, width, height) else null
+                    }
+                    ?.maxByOrNull { it.second * it.third } // pick by largest area
+                    ?.first
+
+
+                YTMusicSong(
+                    title = title,
+                    videoId = videoId,
+                    artists = artists as List<String>,
+                    album = album,
+                    duration = duration,
+                    thumbnailUrl = thumbUrl
+                )
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     // new pipe extractor
     suspend fun fetchAudioStreamUrl_newpipe(
         artist: String,
@@ -68,5 +128,34 @@ class AudioFetcher {
         }
     }
 
+    suspend fun fetchAudioStreamUrl_newpipe_by_VideoID(
+        videoId: String
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://www.youtube.com/watch?v=$videoId"
+            val service = ServiceList.YouTube
+            val streamInfo = StreamInfo.getInfo(service, url)
+
+            val audioStreams = streamInfo.audioStreams
+
+            // You can select based on bitrate or quality here
+            val selectedStream: AudioStream = audioStreams.firstOrNull()
+                ?: return@withContext null
+
+            return@withContext selectedStream.url
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext null
+        }
+    }
 }
+
+data class YTMusicSong(
+    val title: String,
+    val videoId: String,
+    val artists: List<String>,
+    val album: String?,
+    val duration: String?,
+    val thumbnailUrl: String?
+)
 

@@ -122,24 +122,13 @@ fun MainAppScreen(
                 LaunchedEffect(mainAppScreenViewModel.currentScreen) {
                     fileExplorerViewModel.showSearchBar.value = false
                 }
+
+                LaunchedEffect(Unit) {
+                    accountScreenViewModel.observe()
+                }
             }
         }
     )
-}
-
-@Composable
-fun RenderSettingsScreen(mainAppScreenViewModel : MainAppScreenViewModel){
-    LazyColumn(
-    ) {
-        items(100) { index ->
-            Text(
-                text = "Settings Screen     Settings Screen   Settings Screen   Settings Screen" +
-                        "Settings Screen   Settings Screen    Settings Screen",
-                modifier = Modifier.padding(16.dp),
-                color = Color.White
-            )
-        }
-    }
 }
 
 @Composable

@@ -1,10 +1,13 @@
 package com.example.estia
 
 import android.content.Context
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
 import androidx.room.Entity
+import androidx.room.Ignore
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
@@ -97,10 +100,10 @@ data class SearchHistoryEntry(
     val name: String,
     val artist: String? = null,
     val album: String? = null,
-    var duration: Long? = null,
-    var filePath: String? = null,
-    var coverArtUri: String? = null,
-    var source: String? = null,
+    val duration: Long? = null,
+    val filePath: String? = null,
+    val coverArtUri: String? = null,
+    val source: String? = null,
     val timeStamp: Long = System.currentTimeMillis()
 )
 
@@ -111,9 +114,9 @@ data class LikedSongFile(
     val id: String,
     val artist: String,
     val album: String,
-    var duration: Long,
-    var coverArtUri: String? = null,
-    var source: String = "Liked Songs",
+    val duration: Long,
+    val coverArtUri: String? = null,
+    val source: String = "Liked Songs",
 )
 
 @Entity(tableName = "estiaDownload")
@@ -123,10 +126,10 @@ data class EstiaDownloadFile(
     val id: String,
     val artist: String,
     val album: String,
-    var duration: Long,
-    var filePath: String,
-    var coverArtUri: String? = null,
-    var source: String = "Estia Downloads",
+    val duration: Long,
+    val filePath: String,
+    val coverArtUri: String? = null,
+    val source: String = "Estia Downloads",
 )
 
 @Dao

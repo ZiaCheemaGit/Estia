@@ -36,6 +36,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.estia.AccountScreen.AccountScreenRouter
+import com.example.estia.AccountScreen.DownloadedSongsScreen.DownloadedSongsScreen
+import com.example.estia.AccountScreen.LikedSongsScreen.LikedSongsScreen
 import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.RenderFileExplorerScreen
@@ -87,11 +89,26 @@ fun RenderAccountScreen(
             }
 
             composable(AccountScreenRouter.likedSongsScreen) {
-
+                LikedSongsScreen(
+                    playListScreenViewModel = playListScreenViewModel,
+                    fileExplorerViewModel = fileExplorerViewModel,
+                    list = viewModel.likedSongs.collectAsState().value,
+                    mainAppScreenViewModel = mainAppScreenViewModel,
+                    expandableDrawerViewModel = expandableDrawerViewModel,
+                    navController = accountScreenNavController
+                )
             }
 
             composable(AccountScreenRouter.estiaDownloads) {
-
+                DownloadedSongsScreen(
+                    playListScreenViewModel = playListScreenViewModel,
+                    fileExplorerViewModel = fileExplorerViewModel,
+                    list = viewModel.estiaDownloads.collectAsState().value,
+                    mainAppScreenViewModel = mainAppScreenViewModel,
+                    expandableDrawerViewModel = expandableDrawerViewModel,
+                    navController = accountScreenNavController,
+                    accountScreenViewModel = viewModel
+                )
             }
         }
     )
