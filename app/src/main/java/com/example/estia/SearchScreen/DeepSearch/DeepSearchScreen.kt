@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -47,24 +45,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.R
-import com.example.estia.SearchScreen.MainScreen.AlbumItemComposable
-import com.example.estia.SearchScreen.MainScreen.ArtistItemComposable
-import com.example.estia.SearchScreen.MainScreen.SearchHistorySongItemComposable
 import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
-import com.example.estia.SearchScreen.MainScreen.SongItemComposable
-import com.example.estia.SearchScreen.MusicBrainzTrack
-import com.example.estia.SearchScreen.MusicBrainzTrackDetails
 import com.example.estia.SpotifyBold
 import com.example.estia.YTMusicSong
 import kotlinx.coroutines.launch
-import java.nio.file.WatchEvent
 import kotlin.math.roundToInt
 
 @Composable
@@ -243,11 +233,10 @@ fun DeepSearchScreenDisplay(
         }
 
         items(deepSearchScreenViewModel.songSearchResults.value.size){ it ->
-            DeepSearchSongItemComposable(
+            ytSongItemComposablePLayAble(
                 mainAppScreenViewModel,
                 searchScreenViewModel,
                 deepSearchScreenViewModel.songSearchResults.value[it],
-                playListScreenViewModel,
                 deepSearchScreenViewModel
             )
         }
@@ -258,11 +247,10 @@ fun DeepSearchScreenDisplay(
 }
 
 @Composable
-fun DeepSearchSongItemComposable(
+fun ytSongItemComposablePLayAble(
     mainAppScreenViewModel: MainAppScreenViewModel,
     searchScreenViewModel: SearchScreenViewModel,
     ytMF: YTMusicSong,
-    playListScreenViewModel: PlayListScreenViewModel,
     deepSearchScreenViewModel: DeepSearchScreenViewModel
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -425,4 +413,9 @@ fun DeepSearchSongItemComposable(
         }
     }
 }
+
+
+
+
+
 

@@ -30,7 +30,7 @@ import com.example.estia.MainAppScreen.MainAppScreenViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.R
-import com.example.estia.SearchScreen.DeezerAlbum
+import com.example.estia.DeezerAlbum
 import com.example.estia.SearchScreen.MainScreen.AlbumItemComposable
 import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
 import com.example.estia.SearchScreen.MainScreen.SongItemComposable
@@ -44,7 +44,7 @@ fun ArtistScreenDisplay(
     searchScreenViewModel: SearchScreenViewModel,
     playListScreenViewModel: PlayListScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
-    windowInfo: WindowInfo
+    windowInfo: WindowInfo,
 ){
 
     val artist = mainAppScreenViewModel.selectedArtist.value

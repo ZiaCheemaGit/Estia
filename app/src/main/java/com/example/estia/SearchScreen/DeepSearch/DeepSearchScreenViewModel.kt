@@ -4,11 +4,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.estia.AudioFetcher
-import com.example.estia.SearchScreen.CoverArtService
-import com.example.estia.SearchScreen.DeezerTrack
-import com.example.estia.SearchScreen.MusicBrainzService
-import com.example.estia.SearchScreen.MusicBrainzTrack
-import com.example.estia.SearchScreen.MusicBrainzTrackDetails
 import com.example.estia.YTMusicSong
 import kotlinx.coroutines.launch
 

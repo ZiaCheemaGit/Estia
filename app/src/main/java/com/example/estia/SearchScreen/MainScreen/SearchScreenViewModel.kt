@@ -10,10 +10,10 @@ import com.chaquo.python.Python
 import com.example.estia.MusicDataBase
 import com.example.estia.MusicFile
 import com.example.estia.SearchHistoryEntry
-import com.example.estia.SearchScreen.DeezerAlbum
-import com.example.estia.SearchScreen.DeezerArtist
-import com.example.estia.SearchScreen.DeezerService
-import com.example.estia.SearchScreen.DeezerTrack
+import com.example.estia.DeezerAlbum
+import com.example.estia.DeezerArtist
+import com.example.estia.DeezerService
+import com.example.estia.DeezerTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.firstOrNull

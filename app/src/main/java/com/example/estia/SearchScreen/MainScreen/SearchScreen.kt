@@ -5,7 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,14 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.WindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,19 +55,16 @@ import com.example.estia.MusicFile
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.R
-import com.example.estia.ScreenRouter
 import com.example.estia.SearchScreen.AlbumDisplayScreen.AlbumScreenDisplay
 import com.example.estia.SearchScreen.ArtistDisplayScreen.ArtistScreenDisplay
 import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenDisplay
 import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenViewModel
-import com.example.estia.SearchScreen.DeepSearch.DeepSearchSongItemComposable
-import com.example.estia.SearchScreen.DeezerAlbum
-import com.example.estia.SearchScreen.DeezerArtist
-import com.example.estia.SearchScreen.DeezerService
-import com.example.estia.SearchScreen.DeezerTrack
+import com.example.estia.DeezerAlbum
+import com.example.estia.DeezerArtist
+import com.example.estia.DeezerTrack
 import com.example.estia.SearchScreen.SearchScreenRouter
-import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
 import com.example.estia.SpotifyBold
+import com.example.estia.WindowInfo
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -83,7 +76,7 @@ fun RenderSearchScreen(
     playListScreenViewModel: PlayListScreenViewModel,
     deepSearcScreenViewModel: DeepSearchScreenViewModel,
     expandableDrawerViewModel: PlayerDrawerViewModel,
-    windowInfo: com.example.estia.WindowInfo
+    windowInfo: WindowInfo
 ) {
     val searchScreenNavController = rememberNavController()
 
@@ -123,15 +116,16 @@ fun RenderSearchScreen(
         }
 
         composable(SearchScreenRouter.artistScreen) {
-            ArtistScreenDisplay(
-                mainAppScreenViewModel = mainAppScreenViewModel,
-                navController = searchScreenNavController,
-                searchScreenViewModel = viewModel,
-                playListScreenViewModel = playListScreenViewModel,
-                expandableDrawerViewModel = expandableDrawerViewModel,
-                windowInfo = windowInfo
-            )
-
+            if(mainAppScreenViewModel.selectedArtist.value != null){
+                ArtistScreenDisplay(
+                    mainAppScreenViewModel = mainAppScreenViewModel,
+                    navController = searchScreenNavController,
+                    searchScreenViewModel = viewModel,
+                    playListScreenViewModel = playListScreenViewModel,
+                    expandableDrawerViewModel = expandableDrawerViewModel,
+                    windowInfo = windowInfo,
+                )
+            }
         }
     }
 }

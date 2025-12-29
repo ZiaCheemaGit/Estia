@@ -67,8 +67,8 @@ kapt {
 dependencies {
 
     // new pipe extractor
-    //implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.26.5")
-    implementation("com.github.ZiaCheemaGit:NewPipeExtractor:final")
+    //implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.24.8")
+    implementation("com.github.ZiaCheemaGit:NewPipeExtractor:v1.0.1")
 
     // Media Transformer
     implementation("androidx.media3:media3-common:1.3.1")

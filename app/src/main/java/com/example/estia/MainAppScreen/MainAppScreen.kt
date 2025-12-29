@@ -6,7 +6,6 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 import androidx.compose.foundation.Image
@@ -14,13 +13,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -32,14 +28,12 @@ import androidx.compose.material.IconButton
 import androidx.compose.ui.graphics.ColorFilter
 import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
-import com.example.estia.EstiaDownloadFile
-import com.example.estia.HomeScreen.HomeScreenViewModel
+import com.example.estia.HomeScreen.MainScreen.HomeScreenViewModel
 import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.SearchScreen.MainScreen.RenderSearchScreen
 import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
-import com.example.estia.HomeScreen.RenderExploreScreen
-import com.example.estia.LikedSongFile
+import com.example.estia.HomeScreen.MainScreen.RenderExploreScreen
 import com.example.estia.ScreenRouter
 import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenViewModel
 import com.example.estia.WindowInfo
@@ -54,17 +48,14 @@ fun MainAppScreen(
     accountScreenViewModel: AccountScreenViewModel,
     windowInfo: WindowInfo,
     deepSearchScreenViewModel: DeepSearchScreenViewModel,
+    homeScreenViewModel: HomeScreenViewModel,
+    searchScreenViewModel: SearchScreenViewModel
 ) {
     RequestMediaPlaybackPermission()
-
-    val searchScreenViewModel : SearchScreenViewModel = viewModel()
-    val homeScreenViewModel: HomeScreenViewModel = viewModel()
 
     mainAppScreenViewModel.setContextandDB(LocalContext.current)
     mainAppScreenViewModel.initService(LocalContext.current)
     mainAppScreenViewModel.loadPlayBackState()
-
-    searchScreenViewModel.initializeDataBAse(LocalContext.current)
 
     val nowPlaying by mainAppScreenViewModel.nowPlaying.collectAsState()
 
@@ -80,14 +71,18 @@ fun MainAppScreen(
         },
         content = { innerPadding ->
             Box(){
-
                 when (mainAppScreenViewModel.currentScreen) {
 
-//                    "ExploreScreen" -> RenderExploreScreen(
-//                        homeScreenViewModel,
-//                        mainAppScreenViewModel,
-//                        innerPadding
-//                    )
+                    "ExploreScreen" -> RenderExploreScreen(
+                        homeScreenViewModel,
+                        mainAppScreenViewModel,
+                        innerPadding,
+                        expandableDrawerViewModel = expandableDrawerViewModel,
+                        playListScreenViewModel = playListScreenViewModel,
+                        searchScreenViewModel = searchScreenViewModel,
+                        fileExplorerViewModel = fileExplorerViewModel,
+                        windowInfo
+                    )
 
                     "SearchScreen" -> RenderSearchScreen(
                         innerPadding,

@@ -1,4 +1,4 @@
-package com.example.estia.SearchScreen
+package com.example.estia
 
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
@@ -110,6 +110,38 @@ data class DSearchResponse<T>(
     val next: String?
 )
 
+data class DeezerPlaylist(
+    val id: Long,
+    val title: String,
+    val description: String?,
+    val duration: Int,
+    @SerializedName("public") val isPublic: Boolean,
+    @SerializedName("nb_tracks") val trackCount: Int,
+    val fans: Int,
+    val link: String,
+    val picture: String,
+    @SerializedName("picture_small") val pictureSmall: String,
+    @SerializedName("picture_medium") val pictureMedium: String,
+    @SerializedName("picture_big") val pictureBig: String,
+    @SerializedName("picture_xl") val pictureXl: String,
+    val creator: PlaylistCreator,
+    val type: String
+)
+
+data class PlaylistCreator(
+    val id: Long,
+    val name: String,
+    val tracklist: String,
+    val type: String
+)
+
+data class DeezerChartResponse(
+    val tracks: DSearchResponse<DeezerTrack>,
+    val albums: DSearchResponse<DeezerAlbum>,
+    val artists: DSearchResponse<DeezerArtist>,
+    val playlists: DSearchResponse<DeezerPlaylist>
+)
+
 interface DeezerApi {
     @GET("search")
     suspend fun searchTracks(@Query("q") query: String): DeezerSearchResponse
@@ -136,6 +168,12 @@ interface DeezerApi {
 
     @GET("artist/{id}/top")
     suspend fun getArtistTopTracks(@Path("id") artistId: Long): DSearchResponse<DeezerTrack>
+
+    @GET("chart")
+    suspend fun getGlobalCharts(
+        @Query("limit") limit: Int = 100,
+        @Query("index") index: Int = 0
+    ): DeezerChartResponse
 }
 
 object DeezerService {
@@ -176,6 +214,15 @@ object DeezerService {
             albumIds = albumIds,
             topTracks = topTracks
         )
+    }
+
+    // Get global top tracks
+    suspend fun getGlobalCharts(): DeezerChartResponse? {
+        return try {
+            return api.getGlobalCharts()
+        } catch (e: Exception) {
+            return null
+        }
     }
 }
 
@@ -258,7 +305,7 @@ interface MusicBrainzApi {
 }
 
 object MusicBrainzService {
-    private val retrofit = retrofit2.Retrofit.Builder()
+    private val retrofit = Retrofit.Builder()
         .baseUrl("https://musicbrainz.org/ws/2/")
         .client(
             OkHttpClient.Builder()
@@ -275,7 +322,7 @@ object MusicBrainzService {
                 }
                 .build()
         )
-        .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+        .addConverterFactory(GsonConverterFactory.create())
         .build()
 
     val api: MusicBrainzApi = retrofit.create(MusicBrainzApi::class.java)

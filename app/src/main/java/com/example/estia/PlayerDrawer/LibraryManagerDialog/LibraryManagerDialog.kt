@@ -153,7 +153,8 @@ fun LibraryManagerDialog(
                                                 .size(20.dp)
                                         )
                                     }
-                                } else {
+                                }
+                                else {
                                     Column(
                                         Modifier
                                             .fillMaxWidth()
@@ -257,4 +258,3 @@ fun LibraryManagerDialog(
         }
     }
 }
-

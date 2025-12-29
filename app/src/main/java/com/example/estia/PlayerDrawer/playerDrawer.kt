@@ -288,7 +288,7 @@ fun SmallMusicPlayer(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 5.dp, vertical = 5.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp)),
                 )
             } else {
                 AsyncImage(

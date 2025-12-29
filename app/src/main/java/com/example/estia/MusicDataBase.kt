@@ -1,19 +1,19 @@
 package com.example.estia
 
 import android.content.Context
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
+import androidx.room.Embedded
 import androidx.room.Entity
-import androidx.room.Ignore
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Relation
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -23,9 +23,11 @@ import kotlinx.coroutines.flow.Flow
         LyricsEntry::class,
         SearchHistoryEntry::class,
         LikedSongFile::class,
-        EstiaDownloadFile::class
+        EstiaDownloadFile::class,
+        YTImportedPlayLists::class,
+        YTImportedSong::class
                ],
-    version = 2
+    version = 1
 )
 abstract class MusicDataBase : RoomDatabase() {
     abstract fun musicDao(): MusicFileDao
@@ -34,6 +36,7 @@ abstract class MusicDataBase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun estiaDownloadsDao(): EstiaDownloadsDao
     abstract fun likedSongsDao(): LikedSongsDao
+    abstract fun ytPlaylistDao(): YTPlaylistDao
 
     companion object {
         @Volatile
@@ -232,5 +235,60 @@ interface SearchHistoryDao {
     suspend fun clearHistory()
 }
 
+@Entity
+data class YTImportedPlayLists(
+    @PrimaryKey(autoGenerate = true) val id: Long,
+    val title: String,
+    val ytPlayListID: String?,
+    val description: String?
+)
 
+@Entity
+data class YTImportedSong(
+    @PrimaryKey(autoGenerate = true) val songId: Int,
+    val playlistId: Long,   // Foreign key to playlist
+    val duration: Long,
+    val videoId: String,
+    val title: String,
+    val artist: String?,
+    val thumbnailUrl: String?,
+    val filePath: String?
+)
 
+@Dao
+interface YTPlaylistDao {
+    @Insert
+    suspend fun insertPlaylist(playlist: YTImportedPlayLists): Long
+
+    @Insert
+    suspend fun insertSongs(songs: List<YTImportedSong>)
+
+    @Transaction
+    @Query("SELECT * FROM YTImportedPlayLists WHERE id = :playlistId")
+    suspend fun getPlaylistWithSongs(playlistId: Int): importedYTPlaylistWithSongs
+
+    @Transaction
+    @Query("SELECT * FROM YTImportedPlayLists")
+    suspend fun getAllPlaylistsWithSongs(): List<importedYTPlaylistWithSongs>
+
+    @Query("DELETE FROM YTImportedSong WHERE playlistId = :playlistId")
+    suspend fun deleteSongsByPlaylistId(playlistId: Long)
+
+    @Query("DELETE FROM YTImportedPlayLists WHERE id = :playlistId")
+    suspend fun deletePlaylistById(playlistId: Long)
+
+    @Transaction
+    suspend fun removePlaylistWithSongs(playlistId: Long) {
+        deleteSongsByPlaylistId(playlistId)
+        deletePlaylistById(playlistId)
+    }
+}
+
+data class importedYTPlaylistWithSongs(
+    @Embedded val playlist: YTImportedPlayLists,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "playlistId"
+    )
+    val songs: List<YTImportedSong>
+)

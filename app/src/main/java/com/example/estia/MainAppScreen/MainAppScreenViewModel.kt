@@ -31,11 +31,11 @@ import androidx.core.graphics.ColorUtils
 import com.example.estia.AudioFetcher
 import com.example.estia.MusicPlaybackService
 import com.example.estia.MusicServiceController
-import com.example.estia.SearchScreen.ArtistFullData
-import com.example.estia.SearchScreen.DeezerAlbum
-import com.example.estia.SearchScreen.DeezerAlbumDetails
-import com.example.estia.SearchScreen.DeezerArtist
-import com.example.estia.SearchScreen.DeezerService
+import com.example.estia.ArtistFullData
+import com.example.estia.DeezerAlbum
+import com.example.estia.DeezerAlbumDetails
+import com.example.estia.DeezerArtist
+import com.example.estia.DeezerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -44,7 +44,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.schabi.newpipe.extractor.timeago.patterns.no
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -249,6 +248,19 @@ class MainAppScreenViewModel : ViewModel(){
                         play()
                         isLoadingSongURL.value = false
                     }
+                    else if(musicFile.album == "YTImportedSong"){
+                        isLoadingSongURL.value = true
+                        var fp = musicFile.filePath
+                        if(fp == null){
+                            fp = AudioFetcher().fetchAudioStreamUrl_newpipe_by_VideoID(musicFile.id)
+                        }
+                        dominantColor.value = getDominantColorFromUri(nowPlaying.value?.coverArtUri.toString())
+                        _nowPlaying.value = nowPlaying.value?.copy(filePath = fp)
+                        isLoadingSongURL.value = false
+                        if(!loading){
+                            play()
+                        }
+                    }
                     else{
                         dominantColor.value = getDominantColorFromUri(nowPlaying.value?.coverArtUri.toString())
                         if(!loading){
@@ -353,19 +365,19 @@ class MainAppScreenViewModel : ViewModel(){
 
     // Login options and their mapping with their icons in res/drawable/
     val unselectedBottomBarIcons = mapOf(
-        //"exploreIcon" to R.drawable.home_icon_unselected,
+        "exploreIcon" to R.drawable.home_icon_unselected,
         "searchIcon" to R.drawable.search_icon_unselected,
         "accountIcon" to R.drawable.library_icon_unselected,
     )
 
     val selectedBottomBarIcons = mapOf(
-        //"exploreIcon" to R.drawable.home_icon_selected_icon,
+        "exploreIcon" to R.drawable.home_icon_selected_icon,
         "searchIcon" to R.drawable.search_icon_selected,
         "accountIcon" to R.drawable.library_icon_selected,
     )
 
     val screenMapping = mapOf(
-        //"exploreIcon" to "ExploreScreen",
+        "exploreIcon" to "ExploreScreen",
         "searchIcon" to "SearchScreen",
         "accountIcon" to "AccountScreen",
     )

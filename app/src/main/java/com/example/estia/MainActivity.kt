@@ -26,6 +26,7 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.example.estia.AccountScreen.MainScreen.AccountScreenViewModel
 import com.example.estia.AccountScreen.LocalFilesScreen.FileExplorerViewModel
+import com.example.estia.HomeScreen.MainScreen.HomeScreenViewModel
 import com.example.estia.PlayerDrawer.LibraryManagerDialog.LibraryManagerDialog
 import com.example.estia.LoginScreen.LoginScreen
 import com.example.estia.MainAppScreen.MainAppScreen
@@ -34,6 +35,7 @@ import com.example.estia.PlayListScreen.PlayListScreenViewModel
 import com.example.estia.PlayerDrawer.PlayerDrawerViewModel
 import com.example.estia.PlayerDrawer.playerDrawer
 import com.example.estia.SearchScreen.DeepSearch.DeepSearchScreenViewModel
+import com.example.estia.SearchScreen.MainScreen.SearchScreenViewModel
 import com.example.estia.downloader.DownloaderObject
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.NewPipe
@@ -68,8 +70,11 @@ fun Main(
     val playListScreenViewModel : PlayListScreenViewModel = viewModel()
     val accountScreenViewModel: AccountScreenViewModel = viewModel()
     val deepSearchScreenViewModel: DeepSearchScreenViewModel = viewModel()
+    val homeScreenViewModel: HomeScreenViewModel = viewModel()
+    val searchScreenViewModel : SearchScreenViewModel = viewModel()
 
     accountScreenViewModel.initializeContextAndDB(LocalContext.current)
+    searchScreenViewModel.initializeDataBAse(LocalContext.current)
 
     SetSystemBarsColor(Color.Transparent) // Set system bars color
 
@@ -94,6 +99,8 @@ fun Main(
                         accountScreenViewModel,
                         windowInfo,
                         deepSearchScreenViewModel = deepSearchScreenViewModel,
+                        homeScreenViewModel = homeScreenViewModel,
+                        searchScreenViewModel
                     )
             }
         )
