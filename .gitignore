@@ -1,3 +1,6 @@
+# Automation
+Makefile
+
 # Gradle
 .gradle/
 build/
