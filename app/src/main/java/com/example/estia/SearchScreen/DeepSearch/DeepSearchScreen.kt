@@ -274,30 +274,6 @@ fun ytSongItemComposablePLayAble(
                 scope.launch { swipeOffset.snapTo(newOffset) }
             },
             onDragEnd = {
-//                scope.launch {
-//                    if (swipeOffset.value >= dragThreshold) {
-//                        swipeOffset.animateTo(maxOffset)
-//
-//                        // add song to playList
-//                        val localMusic = MusicFile(
-//                            name = ytMF.title,
-//                            artist = musicFile.artistCredit.joinToString(", "){it.name},//searchScreenViewModel.getAllArtists(musicFile.id.toString()),
-//                            album = null,//musicFile.album?.title,
-//                            duration = musicFile.length?.toLong(),
-//                            filePath = null,
-//                            coverArtUri = coverArt,
-//                            source = "....",
-//                            id = ytMF.videoId
-//                        )
-//
-//                        searchScreenViewModel.addToHistory(localMusic)
-//                        playListScreenViewModel.enqueueInPlayQueue(localMusic)
-//
-//                        swipeOffset.animateTo(0f) // snap back
-//                    } else {
-//                        swipeOffset.animateTo(0f) // also snap back if not enough
-//                    }
-//                }
             },
             onDragCancel = {
                 scope.launch {
